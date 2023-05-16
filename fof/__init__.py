@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from functools import partial, reduce, wraps
 from itertools import accumulate, islice, zip_longest
 from operator import itemgetter
+from pathlib import Path
+from shutil import rmtree
 from textwrap import fill
 
 
@@ -139,6 +141,38 @@ def singleton(cls):
     return wrapper
 
 
+def safe(header=None):
+    def run(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except Exception as e:
+                if header:
+                    print(f"\n{header} {e}\n")
+
+        return wrapper
+
+    return run
+
+
+def polling(f, sec, args=None, kwargs=None):
+    def wrapper():
+        polling(f, sec, args, kwargs)
+        if args and kwargs:
+            f(*args, **kwargs)
+        elif kwargs:
+            f(**kwargs)
+        elif args:
+            f(*args)
+        else:
+            f()
+
+    t = threading.Timer(sec, wrapper, args, kwargs)
+    t.start()
+    return t
+
+
 def bytes_to_int(x, byteorder="big"):
     return int.from_bytes(x, byteorder=byteorder)
 
@@ -186,27 +220,24 @@ def captures(p, string):
     return re.compile(p).findall(string)
 
 
-def mkdir(dname, path=None, mode=0o755):
-    d = f"{path}/{dname}" if path else dname
-    os.makedirs(d, mode=mode, exist_ok=True)
-    return d
+def HOME():
+    return os.getenv("HOME")
 
 
-def polling(f, sec, args=None, kwargs=None):
-    def wrapper():
-        polling(f, sec, args, kwargs)
-        if args and kwargs:
-            f(*args, **kwargs)
-        elif kwargs:
-            f(**kwargs)
-        elif args:
-            f(*args)
-        else:
-            f()
+def exists(path):
+    return pathlib.Path(path).exists()
 
-    t = threading.Timer(sec, wrapper, args, kwargs)
-    t.start()
-    return t
+
+def mkdir(path, mode=0o755):
+    os.makedirs(path, mode=mode, exist_ok=True)
+    return path
+
+
+def rmdir(path, rm_rf=False):
+    if rm_rf:
+        rmtree(path)
+    else:
+        os.removedirs(path)
 
 
 def fmt(*args, width=100, indent=12):
