@@ -75,21 +75,21 @@ def cfd(*fs, rep=None):
     return comp
 
 
-def m_(f):
-    """Builds partially applied map
+def ma_(f):
+    r"""Builds partial application of `map`
     map(f, xs) == f <$> xs
 
-    (f <$>) == map(f,)  == f_(map, f) == m_(f)
+    (f <$>) == map(f,)  == f_(map, f) == ma_(f)
     (<$> xs) == map(,xs) == f_(flip(map), xs)
     """
     return f_(map, f)
 
 
-def mf_(xs):
-    """Builds partially-applied flipped map
-    See also 'm_'.
+def am_(xs):
+    r"""Builds flipped-partial application of `map`
+    See also 'ma_'.
 
-    (f <$>) == map(f,)  == f_(map, f) == m_(f)
+    (f <$>) == map(f,)  == f_(map, f) == ma_(f)
     (<$> xs) == map(,xs) == f_(flip(map), xs)
     """
     return f_(flip(map), xs)
@@ -102,7 +102,7 @@ def ft_(f):
     return f_(filter, f)
 
 
-def ftf_(xs):
+def tf_(xs):
     """Builds partially-applied flipped map
     using xs, an iterable object to be filtered
     """
@@ -225,7 +225,7 @@ def HOME():
 
 
 def exists(path):
-    return pathlib.Path(path).exists()
+    return Path(path).exists()
 
 
 def mkdir(path, mode=0o755):
