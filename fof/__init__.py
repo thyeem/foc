@@ -146,6 +146,23 @@ def scan1(f, xs):
     return scan(f, None, xs)
 
 
+class dmap(dict):
+    """dot-accessible dict"""
+
+    __delattr__ = dict.__delitem__
+
+    def __getattr__(self, key):
+        if key not in self and key != "_ipython_canary_method_should_not_exist_":
+            self[key] = dmap()
+        return self[key]
+
+    def __setattr__(self, key, val):
+        if isinstance(val, dict):
+            self[key] = dmap(val)
+        else:
+            self[key] = val
+
+
 def singleton(cls):
     instances = {}
 
