@@ -75,8 +75,16 @@ def cfd(*fs, rep=None):
     return comp
 
 
+def ff_(f, *args):
+    """Partial ('flipped') application of a given function and arguments:
+    'flipped' means the funtion is partially applied from the second argument
+    except for the first one.
+    """
+    return f_(flip(f), *args[::-1])
+
+
 def ma_(f):
-    r"""Builds partial application of `map`
+    """Builds partial application of `map`
     map(f, xs) == f <$> xs
 
     (f <$>) == map(f,)  == f_(map, f) == ma_(f)
@@ -86,7 +94,7 @@ def ma_(f):
 
 
 def am_(xs):
-    r"""Builds flipped-partial application of `map`
+    """Builds flipped-partial application of `map`
     See also 'ma_'.
 
     (f <$>) == map(f,)  == f_(map, f) == ma_(f)
