@@ -35,14 +35,31 @@ def flip(f):
     """flip(f) takes its arguments in the reverse order of f"""
 
     @wraps(f)
-    def wrapper(*args):
-        return f(*args[::-1])
+    def wrapper(*args, **kwargs):
+        return f(*args[::-1], **kwargs)
 
     return wrapper
 
 
 # Partial evaluation of function
 f_ = partial
+
+
+def ff_(f, *args, sgra=False, **kwargs):
+    """Partial application of a flipped-function and arguments:
+    'flipped' means the given funtion is partially applied from the right
+    after being 'flipped'.
+
+    Passing arguments in reverse for a function is painful.
+    When 'sgra=True', args can be given in the forward direction
+    even if the flipped funtion is applied from the right.
+
+    'sgra' == 'args'[::-1]
+    """
+    if sgra:
+        return f_(flip(f), *args, **kwargs)
+    else:
+        return flip(f_(flip(f), *args[::-1], **kwargs))
 
 
 def cf_(*fs, rep=None):
@@ -73,14 +90,6 @@ def cfd(*fs, rep=None):
         return wrapper
 
     return comp
-
-
-def ff_(f, *args):
-    """Partial ('flipped') application of a given function and arguments:
-    'flipped' means the funtion is partially applied from the second argument
-    except for the first one.
-    """
-    return f_(flip(f), *args[::-1])
 
 
 def ma_(f):
