@@ -147,14 +147,15 @@ def scan1(f, xs):
 
 
 class dmap(dict):
-    """dot-accessible dict"""
+    """dot-accessible dict(map)"""
 
     __delattr__ = dict.__delitem__
 
     def __getattr__(self, key):
         if key not in self and key != "_ipython_canary_method_should_not_exist_":
             self[key] = dmap()
-        return self[key]
+        o = self[key]
+        return dmap(o) if type(o) is dict else o
 
     def __setattr__(self, key, val):
         if isinstance(val, dict):
