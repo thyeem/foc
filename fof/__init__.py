@@ -1,6 +1,7 @@
 import os
 import re
 import threading
+from collections import deque
 from datetime import datetime, timedelta
 from functools import partial, reduce, wraps
 from itertools import accumulate, islice, zip_longest
@@ -79,7 +80,7 @@ def cf_(*fs, rep=None):
 
 def cfd(*fs, rep=None):
     """Compose-function decorator:
-    generate a decorator using the given functions' composition.
+    decorate a function using the given functions' composition.
     """
 
     def comp(g):
@@ -226,12 +227,55 @@ def random_int(n):
     return bytes_to_int(random_bytes((n.bit_length() + 7) // 8)) % n
 
 
-def flatten(xss):
-    if isinstance(xss, tuple) or isinstance(xss, list):
-        for xs in xss:
-            yield from flatten(xs)
-    else:
-        yield xss
+def is_ns_iter(x):
+    """Check if the given is a non-string-like iterable"""
+    return all(
+        (
+            hasattr(x, "__iter__"),
+            not isinstance(x, str),
+            not isinstance(x, bytes),
+        )
+    )
+
+
+@cfd(deque)
+def flat(*args):
+    """Flatten all kinds of iterables (except for string-like object)"""
+
+    def go(xss):
+        if is_ns_iter(xss):
+            for xs in xss:
+                yield from go([*xs] if is_ns_iter(xs) else xs)
+        else:
+            yield xss
+
+    return go(args)
+
+
+flatl = cfd(list)(flat)
+flatg = cfd(iter)(flat)
+
+
+def fitr(*args, binary=False):
+    return flat(
+        iter(open(x, "rb" if binary else "r").readlines())
+        if isinstance(x, bytes) and exists(x.decode(), "f")
+        else x
+        for x in flat(args)
+    )
+
+
+fitrb = f_(fitr, binary=True)
+
+
+def fitw(f, *args, binary=False):
+    with open(f, "wb" if binary else "w") as fh:
+        for l in fitr(args):
+            fh.write(l.encode() if binary else f"{l}\n")
+        return f
+
+
+fitwb = f_(fitw, binary=True)
 
 
 def split_by(o, ix):
@@ -259,8 +303,14 @@ def HOME():
     return os.getenv("HOME")
 
 
-def exists(path):
-    return Path(path).exists()
+def exists(path, kind=None):
+    o = Path(path)
+    if kind == "f":
+        return o.is_file()
+    elif kind == "d":
+        return o.is_dir()
+    else:
+        return o.exists()
 
 
 def mkdir(path, mode=0o755):
