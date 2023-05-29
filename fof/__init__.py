@@ -16,18 +16,19 @@ def id(x):
 
 
 def fst(x):
-    return nth(x, 0)
-
-
-def snd(x):
     return nth(x, 1)
 
 
+def snd(x):
+    return nth(x, 2)
+
+
 def nth(x, n):
+    assert n > 0, f"Error, must be a positive integer: {n}"
     if hasattr(x, "__getitem__"):
-        return itemgetter(n)(x)
+        return itemgetter(n - 1)(x)
     else:
-        for _ in range(n):
+        for _ in range(n - 1):
             x.__next__()
         return x.__next__()
 
