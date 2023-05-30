@@ -257,26 +257,13 @@ flatl = cfd(list)(flat)
 flatg = cfd(iter)(flat)
 
 
-def fitr(*args, binary=False):
+def fitr(*args):
     return flat(
-        iter(open(x, "rb" if binary else "r").readlines())
+        iter(open(x, "r").readlines())
         if isinstance(x, bytes) and exists(x.decode(), "f")
         else x
         for x in flat(args)
     )
-
-
-fitrb = f_(fitr, binary=True)
-
-
-def fitw(f, *args, binary=False):
-    with open(f, "wb" if binary else "w") as fh:
-        for l in fitr(args):
-            fh.write(l.encode() if binary else f"{l}\n")
-        return f
-
-
-fitwb = f_(fitw, binary=True)
 
 
 def split_by(o, ix):
