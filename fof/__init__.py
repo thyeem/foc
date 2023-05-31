@@ -94,6 +94,18 @@ def cfd(*fs, rep=None):
     return comp
 
 
+def bimap(f, g, o):
+    return f(fst(o)), g(snd(o))
+
+
+def first(f, o):
+    return bimap(f, id, o)
+
+
+def second(g, o):
+    return bimap(id, g, o)
+
+
 def ma_(f):
     """Builds partial application of `map`
     map(f, xs) == f <$> xs
@@ -264,6 +276,13 @@ def fitr(*args):
         else x
         for x in flat(args)
     )
+
+
+def fitw(f, *args):
+    with open(f, "w") as fh:
+        for line in flat(args):
+            fh.write(f"{line}\n")
+    return f
 
 
 def split_by(o, ix):
