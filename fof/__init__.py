@@ -7,11 +7,108 @@ from collections import deque
 from datetime import datetime, timedelta
 from functools import cache, partial, reduce, wraps
 from inspect import signature
+from itertools import count, cycle, dropwhile, takewhile
 from shutil import rmtree
 from textwrap import fill
 
-# re-export
-# count cycle takewhile dropwhile
+__all__ = [
+    "safe",
+    "not_",
+    "id",
+    "take",
+    "drop",
+    "head",
+    "last",
+    "init",
+    "tail",
+    "fst",
+    "snd",
+    "nth",
+    "pred",
+    "succ",
+    "odd",
+    "even",
+    "null",
+    "words",
+    "unwords",
+    "lines",
+    "unlines",
+    "iterate",
+    "repeat",
+    "replicate",
+    "cycle",
+    "count",
+    "takewhile",
+    "dropwhile",
+    "product",
+    "flip",
+    "f_",
+    "ff_",
+    "curry",
+    "c_",
+    "cc_",
+    "cf_",
+    "cfd",
+    "m_",
+    "mm_",
+    "ml_",
+    "mml_",
+    "v_",
+    "vv_",
+    "vl_",
+    "vvl_",
+    "mapl",
+    "filterl",
+    "zipl",
+    "rangel",
+    "enumeratel",
+    "reverse",
+    "sort",
+    "bimap",
+    "first",
+    "second",
+    "fold",
+    "fold1",
+    "scan",
+    "scan1",
+    "permutation",
+    "combination",
+    "cprod",
+    "concat",
+    "concatl",
+    "concatmap",
+    "concatmapl",
+    "flat",
+    "flatl",
+    "flatt",
+    "flatd",
+    "flats",
+    "fread",
+    "fwrite",
+    "split_at",
+    "chunk_of",
+    "capture",
+    "captures",
+    "error",
+    "HOME",
+    "pwd",
+    "normpath",
+    "exists",
+    "dirname",
+    "basename",
+    "mkdir",
+    "rmdir",
+    "bytes_to_int",
+    "int_to_bytes",
+    "random_bytes",
+    "random_int",
+    "dmap",
+    "fn_args",
+    "singleton",
+    "polling",
+    "fmt",
+    "timestamp",
+]
 
 
 def safe(msg=None):
@@ -29,6 +126,10 @@ def safe(msg=None):
     return run
 
 
+# `not` as a function
+not_ = op.not_
+
+
 def id(x):
     return x
 
@@ -39,6 +140,23 @@ def take(n, x):
 
 def drop(n, x):
     return it.islice(x, n, None)
+
+
+def head(x):
+    return fst(x)
+
+
+@safe()
+def last(x):
+    return x[-1]
+
+
+def init(x):
+    return it.islice(x, len(x) - 1)
+
+
+def tail(x):
+    return drop(1, x)
 
 
 def fst(x):
@@ -59,23 +177,6 @@ def nth(x, n):
         return x.__next__()
 
 
-def head(x):
-    return fst(x)
-
-
-@safe()
-def last(x):
-    return x[-1]
-
-
-def init(x):
-    return it.islice(x, len(x) - 1)
-
-
-def tail(x):
-    return drop(1, x)
-
-
 def pred(x):
     return x - 1
 
@@ -90,6 +191,11 @@ def odd(x):
 
 def even(x):
     return x % 2 == 0
+
+
+def null(x):
+    """check if a given collection is empty"""
+    return len(x) == 0
 
 
 def words(x):
@@ -108,12 +214,23 @@ def unlines(x):
     return "\n".join(x)
 
 
+def iterate(f, x):
+    while True:
+        yield x
+        x = f(x)
+
+
 def repeat(x):
     return (x for _ in it.count())
 
 
 def replicate(n, x):
     return (x for _ in range(n))
+
+
+def product(x):
+    """product of the elements of given iterable"""
+    return fold1(op.mul, x)
 
 
 def flip(f):
@@ -196,10 +313,6 @@ def cfd(*fs, rep=None):
     return comp
 
 
-# list-decorated map
-mapl = cfd(list)(map)
-
-
 def m_(f):
     """builds partial application of `map`
     map(f, xs) == f <$> xs
@@ -230,14 +343,6 @@ def mml_(f):
     return cfd(list)(mm_(f))
 
 
-# list-decorated filter
-filterl = cfd(list)(filter)
-
-
-# list-decorated filter
-zipl = cfd(list)(zip)
-
-
 def v_(f):
     """builds partial application of `filter`.
     f: predicate or filter funtion"""
@@ -259,6 +364,34 @@ def vl_(f):
 def vvl_(f):
     """list-decorated `vv_`"""
     return cfd(list)(vv_(f))
+
+
+# list-decorated `map`
+mapl = cfd(list)(map)
+
+
+# list-decorated `filter`
+filterl = cfd(list)(filter)
+
+
+# list-decorated `filter`
+zipl = cfd(list)(zip)
+
+
+# list-decorated `range`
+rangel = cfd(list)(range)
+
+
+# list-decorated `enumerate`
+enumeratel = cfd(list)(enumerate)
+
+
+# (list) for personal clarity
+reverse = cfd(list)(reversed)
+
+
+# (list) for personal clarity
+sort = sorted
 
 
 def bimap(f, g, x):
@@ -298,12 +431,6 @@ def scan1(f, xs):
     return scan(f, None, xs)
 
 
-def iterate(f, x):
-    while True:
-        yield x
-        x = f(x)
-
-
 def permutation(x, r, rep=False):
     return it.product(x, repeat=r) if rep else it.permutations(x, r)
 
@@ -315,18 +442,24 @@ def combination(x, r, rep=False):
 # Cartesian product
 cprod = ff_(it.product, repeat=1)
 
-# concatenation of all the elements of iterables
+
+# concatenation of all elements of iterables
 concat = it.chain.from_iterable
+
+
+# list-decorated `concat`
+concatl = cfd(list)(concat)
+
 
 # map a function over the given iterable then concat it
 concatmap = cfd(concat)(map)
 
 
-def product(x):
-    return fold1(op.mul, x)
+# list-decorated `concatmap`
+concatmapl = cfd(list)(concatmap)
 
 
-def is_ns_iter(x):
+def _is_ns_iter(x):
     """Check if the given is a non-string-like iterable"""
     return all(
         (
@@ -341,17 +474,14 @@ def flat(*args):
     """flatten all kinds of iterables (except for string-like object)"""
 
     def go(xss):
-        if is_ns_iter(xss):
+        if _is_ns_iter(xss):
             for xs in xss:
-                yield from go([*xs] if is_ns_iter(xs) else xs)
+                yield from go([*xs] if _is_ns_iter(xs) else xs)
         else:
             yield xss
 
     return go(args)
 
-
-# flatten iterables into set
-flats = cfd(set)(flat)
 
 # flatten iterables into list
 flatl = cfd(list)(flat)
@@ -361,6 +491,9 @@ flatt = cfd(tuple)(flat)
 
 # flatten iterables into deque
 flatd = cfd(deque)(flat)
+
+# flatten iterables into set
+flats = cfd(set)(flat)
 
 
 def fread(*args):
