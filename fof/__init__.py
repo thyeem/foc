@@ -12,18 +12,21 @@ from shutil import rmtree
 from textwrap import fill
 
 __all__ = [
+    "flist",
+    "op",
+    "deque",
     "safe",
     "not_",
     "id",
-    "take",
-    "drop",
-    "head",
-    "last",
-    "init",
-    "tail",
     "fst",
     "snd",
     "nth",
+    "take",
+    "drop",
+    "head",
+    "tail",
+    "last",
+    "init",
     "pred",
     "succ",
     "odd",
@@ -38,8 +41,6 @@ __all__ = [
     "replicate",
     "cycle",
     "count",
-    "takewhile",
-    "dropwhile",
     "product",
     "flip",
     "f_",
@@ -63,14 +64,21 @@ __all__ = [
     "rangel",
     "enumeratel",
     "reverse",
+    "reversel",
     "sort",
+    "takewhile",
+    "takewhilel",
+    "dropwhile",
+    "dropwhilel",
     "bimap",
     "first",
     "second",
     "fold",
     "fold1",
     "scan",
+    "scanl",
     "scan1",
+    "scan1l",
     "permutation",
     "combination",
     "cprod",
@@ -78,6 +86,9 @@ __all__ = [
     "concatl",
     "concatmap",
     "concatmapl",
+    "lazy",
+    "force",
+    "forcemap",
     "flat",
     "flatl",
     "flatt",
@@ -106,24 +117,21 @@ __all__ = [
     "fn_args",
     "singleton",
     "polling",
-    "fmt",
+    "neatly",
+    "nprint",
     "timestamp",
 ]
 
 
-def safe(msg=None):
-    def run(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            try:
-                return f(*args, **kwargs)
-            except:
-                if msg:
-                    print(f"{msg}")
+def safe(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except:
+            return
 
-        return wrapper
-
-    return run
+    return wrapper
 
 
 # `not` as a function
@@ -134,6 +142,20 @@ def id(x):
     return x
 
 
+@safe
+def fst(x):
+    return nth(1, x)
+
+
+@safe
+def snd(x):
+    return nth(2, x)
+
+
+def nth(n, x):
+    return x[n - 1] if hasattr(x, "__getitem__") else next(it.islice(x, n - 1, None))
+
+
 def take(n, x):
     return [*it.islice(x, n)]
 
@@ -142,39 +164,28 @@ def drop(n, x):
     return it.islice(x, n, None)
 
 
+@safe
 def head(x):
     return fst(x)
 
 
-@safe()
-def last(x):
-    return x[-1]
-
-
-def init(x):
-    return it.islice(x, len(x) - 1)
-
-
+@safe
 def tail(x):
     return drop(1, x)
 
 
-def fst(x):
-    return nth(x, 1)
+@safe
+def last(x):
+    return deque(x, maxlen=1)[0]
 
 
-def snd(x):
-    return nth(x, 2)
-
-
-def nth(x, n):
-    assert n > 0, f"Error, not a positive integer: {n}"
-    if hasattr(x, "__getitem__"):
-        return op.itemgetter(n - 1)(x)
-    else:
-        for _ in range(n - 1):
-            x.__next__()
-        return x.__next__()
+@safe
+def init(x):
+    it = iter(x)
+    o = next(it)
+    for i in it:
+        yield o
+        o = i
 
 
 def pred(x):
@@ -225,7 +236,7 @@ def repeat(x):
 
 
 def replicate(n, x):
-    return (x for _ in range(n))
+    return take(n, repeat(x))
 
 
 def product(x):
@@ -243,20 +254,19 @@ def flip(f):
     return wrapper
 
 
-# Partial evaluation of function
+# for decreasing verbosity
 f_ = partial
 
 
 def ff_(f, *args, sgra=False, **kwargs):
-    """Partial application of a flipped-function:
-    'flipped' means the given funtion is partially applied from the right.
-    (or apply arguments from the left after the function is 'flipped')
+    """build partial application after getting a function flipped:
+    'flipped' means the original funtion is partially applied from the right.
 
     Passing arguments in reverse order for a function is painful.
-    When 'sgra=True', args can be given in the forward direction
-    even if the flipped funtion is applied from the right.
+    `ff_` takes arguments _in order_ by default (`sgra=False`).
+    When 'sgra=True', it will take arguments in reverse order.
 
-    'sgra' == 'args'[::-1]
+    naming: 'sgra' == 'args'[::-1]
     """
     if sgra:
         return f_(flip(f), *args, **kwargs)
@@ -265,7 +275,7 @@ def ff_(f, *args, sgra=False, **kwargs):
 
 
 def curry(f, n=None):
-    """Curried function that takes arguments from the left.
+    """build curried function that takes arguments from the left.
     The currying result is simply a nested unary function.
 
     This function takes positional arguments only when currying.
@@ -284,12 +294,12 @@ c_ = curry
 
 
 def cc_(f, *args, **kwargs):
-    """Curried function that takes arguments from the right"""
+    """build curried function that takes arguments from the right"""
     return c_(flip(f), *args, **kwargs)
 
 
 def cf_(*fs, rep=None):
-    """Composing functions using the given list of functions"""
+    """compose a given list of functions then return the composed function"""
 
     def wrapper(f, g):
         return lambda x: f(g(x))
@@ -299,7 +309,7 @@ def cf_(*fs, rep=None):
 
 
 def cfd(*fs, rep=None):
-    """Compose-function decorator:
+    """decorator using the composition of functions:
     decorate a function using the composition of the given functions.
     """
 
@@ -314,7 +324,7 @@ def cfd(*fs, rep=None):
 
 
 def m_(f):
-    """builds partial application of `map`
+    """builds partial application of `map` (left-associative)
     map(f, xs) == f <$> xs
 
     (f <$>) == map(f,)  == f_(map, f) == m_(f)
@@ -324,7 +334,7 @@ def m_(f):
 
 
 def mm_(xs):
-    """builds flipped-partial application of `map`
+    """builds partial application of `map` (right-associative)
     See also 'm_'.
 
     (f <$>) == map(f,)  == f_(map, f) == m_(f)
@@ -334,64 +344,75 @@ def mm_(xs):
 
 
 def ml_(f):
-    """list-decorated `m_`"""
+    """unpacks the result in list after `m_`"""
     return cfd(list)(m_(f))
 
 
 def mml_(f):
-    """list-decorated `mm_`"""
+    """unpacks the result in list after `mm_`"""
     return cfd(list)(mm_(f))
 
 
 def v_(f):
-    """builds partial application of `filter`.
+    """builds partial application of `filter` (left-associative)
     f: predicate or filter funtion"""
     return f_(filter, f)
 
 
 def vv_(xs):
-    """builds flipped-partial application of `filter`
-    xs: iterable
-    """
+    """builds partial application of `filter` (right-associative)
+    xs: iterable"""
     return ff_(filter, xs)
 
 
 def vl_(f):
-    """list-decorated `v_`"""
+    """unpacks the result in list after `v_`"""
     return cfd(list)(v_(f))
 
 
 def vvl_(f):
-    """list-decorated `vv_`"""
+    """unpacks the result in list after `vv_`"""
     return cfd(list)(vv_(f))
 
 
-# list-decorated `map`
 mapl = cfd(list)(map)
+mapl.__doc__ = "unpacks the result in list after `map`"
 
 
-# list-decorated `filter`
 filterl = cfd(list)(filter)
+filterl.__doc__ = "unpacks the result in list after `filter`"
 
 
-# list-decorated `filter`
 zipl = cfd(list)(zip)
+zipl.__doc__ = "unpacks the result in list after `filter`"
 
 
-# list-decorated `range`
 rangel = cfd(list)(range)
+rangel.__doc__ = "unpacks the result in list after `range`"
 
 
-# list-decorated `enumerate`
 enumeratel = cfd(list)(enumerate)
+enumeratel.__doc__ = "unpacks the result in list after `enumerate`"
 
 
-# (list) for personal clarity
-reverse = cfd(list)(reversed)
+# for clarity of function names
+reverse = reversed
 
 
-# (list) for personal clarity
+reversel = cfd(list)(reverse)
+reversel.__doc__ = "unpacks the result in list after `reverse`"
+
+
+# "for clarity of function names"
 sort = sorted
+
+
+takewhilel = cfd(list)(takewhile)
+takewhilel.__doc__ = "unpacks the result in list after `takewhile`"
+
+
+dropwhilel = cfd(list)(dropwhile)
+dropwhilel.__doc__ = "unpacks the result in list after `dropwhile`"
 
 
 def bimap(f, g, x):
@@ -431,6 +452,14 @@ def scan1(f, xs):
     return scan(f, None, xs)
 
 
+scanl = cfd(list)(scan)
+scanl.__doc__ = "unpacks the result in list after `scan`"
+
+
+scan1l = cfd(list)(scan1)
+scan1l.__doc__ = "unpacks the result in list after `scan1`"
+
+
 def permutation(x, r, rep=False):
     return it.product(x, repeat=r) if rep else it.permutations(x, r)
 
@@ -439,28 +468,46 @@ def combination(x, r, rep=False):
     return it.combinations_with_replacement(x, r) if rep else it.combinations(x, r)
 
 
-# Cartesian product
 cprod = ff_(it.product, repeat=1)
+cprod.__doc__ = "returns Cartesian product"
 
 
-# concatenation of all elements of iterables
+# concatenates all elements of iterables"
 concat = it.chain.from_iterable
 
 
-# list-decorated `concat`
 concatl = cfd(list)(concat)
+concatl.__doc__ = "unpacks the result in list after `concat`"
 
 
-# map a function over the given iterable then concat it
 concatmap = cfd(concat)(map)
+concatmap.__doc__ = "map a function over the given iterable then concat it"
 
 
-# list-decorated `concatmap`
 concatmapl = cfd(list)(concatmap)
+concatmapl.__doc__ = "unpacks the result in list after `concatmap`"
+
+
+def lazy(f, *args, **kwargs):
+    """delays the evaluation of a function(or expression) using generator"""
+
+    def g(*a, **k):
+        yield f(*a, **k) if callable(f) else f
+
+    return cfd(next)(f_(g, *args, **kwargs))
+
+
+def force(x, *args, **kwargs):
+    """forces the delayed-expression to be fully evaluated"""
+    return x(*args, **kwargs) if callable(x) else x
+
+
+forcemap = ml_(force)
+forcemap.__doc__ = "map 'force' over iterables of delayed-evaluation"
 
 
 def _is_ns_iter(x):
-    """Check if the given is a non-string-like iterable"""
+    """check if the given is a non-string-like iterable"""
     return all(
         (
             hasattr(x, "__iter__"),
@@ -483,28 +530,32 @@ def flat(*args):
     return go(args)
 
 
-# flatten iterables into list
 flatl = cfd(list)(flat)
+flatl.__doc__ = "flatten iterables into list"
 
-# flatten iterables into tuple
 flatt = cfd(tuple)(flat)
+flatt.__doc__ = "flatten iterables into tuple"
 
-# flatten iterables into deque
 flatd = cfd(deque)(flat)
+flatd.__doc__ = "flatten iterables into deque"
 
-# flatten iterables into set
 flats = cfd(set)(flat)
+flats.__doc__ = "flatten iterables into set"
 
 
+@cfd(flat)
 def fread(*args):
     """flat-read: read iterables from objects or files then flatten them"""
     f = cf_(normpath, bytes.decode)
-    return flatl(
-        open(f(x), "r").readlines()
-        if isinstance(x, bytes) and exists(f(x), "f")
-        else error(f"Error, not found file: {f(x)}")
-        for x in flat(args)
-    )
+
+    for x in flat(args):
+        if isinstance(x, bytes):
+            if exists(f(x), "f"):
+                yield open(f(x), "r").read().splitlines()
+            else:
+                error(f"Error, not found file: {f(x)}")
+        else:
+            yield x
 
 
 def fwrite(f, *args):
@@ -628,7 +679,7 @@ class dmap(dict):
     def __getattr__(self, key):
         if key not in self and key != "_ipython_canary_method_should_not_exist_":
             self[key] = dmap()
-            o = self[key]
+        o = self[key]
         return dmap(o) if type(o) is dict else o
 
     def __setattr__(self, key, val):
@@ -640,9 +691,6 @@ class dmap(dict):
     def __or__(self, o):
         self.update(o)
         return self
-
-    def __ror__(self, o):
-        return self.__or__(o)
 
 
 @cache
@@ -689,18 +737,24 @@ def polling(f, sec, args=None, kwargs=None):
     return t
 
 
-def fmt(*args, width=100, indent=12):
+def neatly(_width=100, _indent=12, **kwargs):
+    """generate justified string using the given **kwargs"""
     return "\n".join(
         fill(
             f"{v}",
-            width=width,
+            width=_width,
             break_on_hyphens=False,
             drop_whitespace=False,
-            initial_indent=f"{k:>{indent}}  |  ",
-            subsequent_indent=f"{' ':>{indent}}  |  ",
+            initial_indent=f"{k:>{_indent}}  |  ",
+            subsequent_indent=f"{' ':>{_indent}}  |  ",
         )
-        for k, v in args
+        for k, v in kwargs.items()
     )
+
+
+def nprint(x, **kwargs):
+    """neatly print dictionary using `neatly` formatter"""
+    print(neatly(**x, **kwargs))
 
 
 def timestamp(
@@ -710,11 +764,11 @@ def timestamp(
     h=0,
     m=0,
     s=0,
-    from_fmt=None,
-    to_fmt=False,
+    from_str=None,
+    to_str=False,
 ):
-    if from_fmt:
-        t = datetime.strptime(from_fmt, "%Y-%m-%dT%H:%M:%S.%f%z").timestamp()
+    if from_str:
+        t = datetime.strptime(from_str, "%Y-%m-%dT%H:%M:%S.%f%z").timestamp()
     else:
         dt = timedelta(
             weeks=w,
@@ -727,4 +781,22 @@ def timestamp(
             origin = datetime.utcnow().timestamp()
             t = origin + dt
 
-    return to_fmt and f"{datetime.fromtimestamp(t).isoformat()[:26]}Z" or t
+    return to_str and f"{datetime.fromtimestamp(t).isoformat()[:26]}Z" or t
+
+
+@cache
+def __sig__():
+    def sig(o):
+        try:
+            return signature(o).__str__()
+        except:
+            return " is valid, but live-inspect not available"
+
+    return dmap({x: x + sig(eval(x)) for x in __all__[3:]})
+
+
+def flist(o=False):
+    if o:
+        return __sig__()
+    else:
+        nprint(__sig__(), _indent=14)

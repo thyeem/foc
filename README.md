@@ -1,16 +1,18 @@
 # fof
 
-`FOF` or `Francis' Odd Functions`.
-
-Here 'odd' probably does not mean the opposite of 'even'.
+`fun on functions` or `francis' odd functions`.
 
 
-`Python`'s standard library is great. However some notations are a bit painful and confusing for personal use, so I created this odd collection of functions.
-
-I never reinvented the wheel. All functions are minor modifications from the `Python` standard lib.
+Functions from the `Python` standard library are great. But some notations are a bit painful and confusing for personal use, so I created this _odd collection of functions_.
 
 
+### Tl;dr
 
+- `fof` provides a collection of _higher-order functions_ and some (_pure_) helpful functions
+- `fof` respects the `Python` standard library. _Never reinvented the wheel_.
+- _Take a look at the examples below._
+
+### Use
 ```bash
 # install
 $ pip install -U fof
@@ -19,43 +21,490 @@ $ pip install -U fof
 >>> from fof import *
 ```
 
-### functional
+### Ground rules
+- Followed `Haskell`-like function names and arguments order
+- Considered using generators first if possible. (_lazy-evaluation_)
+> `map`, `filter`, `zip`, `range`, `flat` ...
+- Provide the functions that unpack generators in `list` as well. (annoying to unpack with `[*]` or `list` every time)
+- Function names that end in `l` indicate the result will be unpacked in a list.
+> `mapl`, `filterl`, `zipl`, `rangel`, `flatl`, ...
+- Function names that end in `_` indicate that the function is a **partial application** (_not-fully-evaluated function_) builder.
+> `f_`, `ff_`, `c_`, `cc_`, `m_`, `v_`, ...
+- Most function implementations _should be less than 5-lines_.
+- No dependencies except for the `Python` standard library
+- No unnessary wrapping objects.
 
-#### identity function
+### Examples
+> To see all available functions, use `flist()`.
+
+__Note__: `fof`'s functions are valid for any _iterable_ such as `list`, `tuple`, `deque`, `set`, `str`, ...
 ```python
 >>> id("francis")
-# 'francis'
-```
+'francis'
 
-#### getting n-th element from iterators
-```python
 >>> fst(["sofia", "maria", "claire"])
-# 'sofia'
+'sofia'
 
->>> snd(("sofia", "maria", "claire",))
-# 'maria'
+>>> snd(("sofia", "maria", "claire"))
+'maria'
 
->>> nth(["sofia", "maria", "claire"], 3)
-# 'claire'
+>>> nth(["sofia", "maria", "claire"], 3)    # not list index, but literally n-th
+'claire'
+
+>>> take(3, range(5, 10))
+[5, 6, 7]
+
+>>> list(drop(3, "github"))    # `drop` returns a generator
+['h', 'u', 'b']
+
+>>> head(range(1,5))           # range(1, 5) = [1, 2, 3, 4]
+1
+
+>>> last(range(1,5))
+4
+
+>>> list(init(range(1,5)))    # `init` returns a generator
+[1, 2, 3]
+
+>>> list(tail(range(1,5)))    # `tail` returns a generator
+[2, 3, 4]
+
+>>> pred(3)
+2
+
+>>> succ(3)
+4
+
+>>> odd(3)
+True
+
+>>> even(3)
+False
+
+>>> null([]) == null(()) == null({}) == null("")
+True
+
+>>> words("fun on functions")
+['fun', 'on', 'functions']
+
+>>> unwords(['fun', 'on', 'functions'])
+'fun on functions'
+
+>>> lines("fun\non\nfunctions")
+['fun', 'on', 'functions']
+
+>>> unlines(['fun', 'on', 'functions'])
+("fun\non\nfunctions")
+
+>>> take(3, repeat(5))    # repeat(5) = [5, 5, ...]
+[5, 5, 5]
+
+>>> take(5, cycle("fun"))    # cycle("fun") = ['f', 'u', 'n', 'f', 'u', 'n', ...]
+['f', 'u', 'n', 'f', 'u']
+
+>>> replicate(3, 5)   # the same as 'take(3, repeat(5))'
+[5, 5, 5]
+
+>>> take(3, count(2))    # count(2) = [2, 3, 4, 5, ...]
+[2, 3, 4]
+
+>>> take(3, count(2, 3))    # count(2, 3) = [2, 5, 8, 11, ...]
+[2, 5, 8]
 ```
 
-#### partial application of function: `f_`
+#### Build partial application: `f_` and `ff_`
+`f_` takes arguments _from the left_ (left-associative) while `ff_` takes them _from the right_ (right-associative).
+
+> When using `ff_`, passing arguments in reverse order for a long-args function is painful.
+>
+> `ff_` takes arguments _in order_ by default (`sgra=False`). It will take args _in reverse order_ when the `sgra` keyword is on.
+>
+> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
+
 ```python
->>> def add(a, b): return a + b
+import operator as op
 
-# '_' at the end of function name indicates that the function is not fully evaluated yet.
->>> add_five = f_(add, 5)
+>>> f_(op.add, 5)(2)    # the same as `(5+) 2` in Haskell
+7                       # 5 + 2
 
->>> add_five(2)
-# 7
+>>> ff_(op.add, 5)(2)   # the same as `(+5) 2 in Haskell`
+7                       # 2 + 5
 
->>> def print_args(a, b, c): print(f"{a}-{b}-{c}")
+>>> f_(op.sub, 5)(2)    # the same as `(5-) 2`
+3                       # 5 - 2
 
-# f_ is the same as functools.partial: "currying arguments from the left"
->>> munch_left_two = f_(print_args, "a", "b")
+>>> ff_(op.sub, 5)(2)   # the same as `(subtract 5) 2`
+-3                      # 2 - 5
 
->>> munch_left_two("c")
-# a-b-c
+# with N-ary function
+>>> def print_args(a, b, c, d): print(f"{a}-{b}-{c}-{d}")
+
+>>> f_(print_args, 1, 2)(3, 4)                # partial-eval from the left
+1-2-3-4                                       # print_args(1, 2, 3, 4)
+
+>>> f_(print_args, 1, 2, 3)(4)                # patial-eval with different args number
+1-2-3-4                                       # print_args(1, 2, 3, 4)
+
+>>> ff_(print_args, 1, 2)(3, 4)               # partial-eval from the right
+3-4-1-2                                       # print_args(3, 4, 1, 2)
+
+>>> ff_(print_args, 1, 2, sgra=True)(3, 4)    # partial-eval from the right (sgra=True)
+4-3-2-1                                       # print_args(4, 3, 2, 1)
 ```
 
->>>
+#### Build curried functions: `c_` and `cc_`
+When currying a given function, `c_` takes arguments _from the left_ while `cc_` takes them _from the right_.
+> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
+
+```python
+# currying from the left args
+>>> c_(op.add)(5)(2)    # 5 + 2
+7
+
+>>> c_(op.sub)(5)(2)    # 5 - 2
+3
+
+# currying from the right args
+>>> cc_(op.add)(5)(2)   # 2 + 5
+7
+
+>>> cc_(op.sub)(5)(2)   # 2 - 5
+-3
+
+# with N-ary function
+>>> c_(print_args)(1)(2)(3)(4)    # print_args(1, 2, 3, 4)
+1-2-3-4
+
+>>> cc_(print_args)(1)(2)(3)(4)   # print_args(4, 3, 2, 1)
+4-3-2-1
+```
+
+#### Build composition of functions: `cf_` and `cfd`
+`cf_` (_composition of function_) composes functions using the given list of functions. On the other hand, `cfd` (_composing-function decorator_) decorates a function with the given list of functions.
+
+> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
+
+```python
+>>> pow3 = f_(op.pow, 3)      # the same as (3^) in Haskell
+>>> add5 = f_(op.add, 5)      # the same as (5+)
+>>> mul7 = f_(op.mul, 7)      # the same as (7*)
+
+>>> cf_(mul7, add5, pow3)(2)  # (7*) . (5+) . (3^) $ 2
+98                            # mul7(add5(pow3(2))) = 7 * (5 + (3 ^ 2))
+
+>>> @cfd(mul7, add5, pow3)
+... def even_num_less_than(x):
+...     return len(list(filter(even, range(x))))
+
+>>> even_num_less_than(7)     # even numbers less than 7 = len({0, 2, 4, 6}) = 4
+602                           # mul7(add5(pow3(even_num_less_than(7)))) = 7 * (5 + (3 ^ 4))
+
+# the same
+>>> cf_(mul7, add5, pow3, even_num_less_than)(7)
+602
+
+>>> cfd(mul7, add5, pow3)(even_num_less_than)(7)
+602
+```
+
+`cfd` is very handy and useful to recreate previously defined functions by composing functions. All you need is to write a basic functions to do fundamental things.
+
+#### Partial application of `map`: `m_` and `mm_`
+`m_` builds partial application of `map` (left-associative) while `mm_` builds partial application from right to left (right-associative).
+
+> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
+
+Compared to `Haskell`,
+- `f <$> xs == map(f, xs)`
+- `(f <$>) == f_(map, f) == m_(f)`
+- `(<$> xs) == f_(flip(map), xs) == mm_(xs)`
+
+Unpacking with `list(..)` or `[* .. ]` is sometimes very annoying. So often use `mapl` for low memory consuming tasks.
+
+> _Hereafter, function names that end in `l` indicate the result will be unpacked in a list._
+>
+> See also, `filterl`, `zipl`, `rangel`, `enumeratel`, `reversel`, `flatl` ... and so on
+
+```python
+# mapl(f, xs) == [* map(f, xs)] == list(map(f, xs))
+>>> mapl = cfd(list)(map)
+
+# so 'm_' and 'mm_' do
+>>> ml_ = cfd(list)(m_)
+>>> mml_ = cfd(list)(mm_)
+```
+
+```python
+>>> list(map(f_(op.mul, 8), range(1, 6)))   # (8*) <$> [1..5]
+[8, 16, 24, 32, 40]                         # [ (lambda x: 8*x)(x) for x in range(1, 6) ]
+
+>>> mapl(f_(op.mul, 8), range(1, 6))        # (8*) <$> [1..5]
+[8, 16, 24, 32, 40]
+
+>>> ml_(f_(op.mul, 8))(range(1, 6))         # ((8*) <$>) [1..5]
+[8, 16, 24, 32, 40]
+
+>>> mml_(range(1, 6))(f_(op.mul, 8))        # (<$> [1..5]) (8*)
+[8, 16, 24, 32, 40]
+```
+
+#### Partial application of `filter`: `v_` and `vv_`
+`v_` builds partial application of `filter` (left-associative) while `vv_` builds partial application from right to left (right-associative).
+
+The same as `map` (mapping functions over iterables) except for filtering iterables using predicate function.
+
+
+> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
+>
+> The name of `v_` comes from the shape of 'funnel'.
+
+```python
+# filterl(f, xs) == [* filter(f, xs)] == list(filter(f, xs))
+>>> filterl = cfd(list)(filter)
+
+>>> vl_ = cfd(list)(v_)      # v_ = f_(filter, f)
+>>> vvl_ = cfd(list)(vv_)    # vv_ = ff_(filter, xs)
+```
+
+```python
+>>> even_nums = vl_(even)
+
+>>> even_nums(range(10))
+[0, 2, 4, 6, 8]
+
+>>> even_nums({2, 3, 5, 7, 11, 13, 17, 19, 23})
+[2]
+
+>>> primes_lt_50 = vvl_([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47])
+
+>>> primes_lt_50(ff_(op.gt, 20))    # (> 20)
+[23, 29, 31, 37, 41, 43, 47]
+
+>>> primes_lt_50(lambda x: x % 3 == 2)
+[2, 5, 11, 17, 23, 29, 41, 47]
+
+>>> primes_lt_50(cf_(ff_(op.eq, 2), ff_(op.mod, 3)))    # ((== 2) . (% 3))
+[2, 5, 11, 17, 23, 29, 41, 47]
+```
+
+#### Other higher-order functions
+> To see all available functions, use `flist()` to print to `stdout` or `usage = flist(True)`.
+
+```python
+>>> bimap(f_(op.add, 3), f_(op.mul, 7), (5, 7))    # bimap (3+) (7*) (5, 7)
+(8, 49)                                            # (3+5, 7*7)
+
+>>> first(f_(op.add, 3), (5, 7))                   # first (3+) (5, 7)
+(8, 7)                                             # (3+5, 7)
+
+>>> second(f_(op.mul, 7), (5, 7))                  # second (7*) (5, 7)
+(5, 49)                                             # (5, 7*7)
+
+>>> take(5, iterate(lambda x: x**2, 2))            # [2, 2**2, (2**2)**2, ((2**2)**2)**2, ...]
+[2, 4, 16, 256, 65536]
+
+>>> [* takewhile(even, [2, 4, 6, 1, 3, 5]) ]       # `takewhile` returns a generator
+[2, 4, 6]
+
+>>> takewhilel(even, [2, 4, 6, 1, 3, 5]) ]
+[2, 4, 6]
+
+>>> [* dropwhile(even, [2, 4, 6, 1, 3, 5]) ]       # `dropwhile` returns a generator
+[1, 3, 5]
+
+>>> dropwhilel(even, [2, 4, 6, 1, 3, 5]) ]
+[1, 3, 5]
+
+# fold with a given initial value
+>>> fold(op.add, 3, range(1, 6))                   # foldl (+) 3 [1..5]
+18
+
+# fold without an initial (first item used)
+>>> fold1(op.add, range(1, 6))                     # foldl1 (+) [1..5]
+15
+
+# scan with a given initial value (see also 'scan')
+>>> scanl(op.add, 3, range(1, 6))                  # scanl (+) 3 [1..5]
+[3, 4, 6, 9, 13, 18]
+
+# scan without an initial (see also 'scan1')
+>>> scan1l(op.add, range(1, 6))                    # scan1l (+) [1..5]
+[1, 3, 6, 10, 15]
+
+# See also 'concat' that returns a generator
+>>> concatl(["sofia", "maria"])
+['s', 'o', 'f', 'i', 'a', 'm', 'a', 'r', 'i', 'a'
+
+# See also 'concatmap' that returns a generator
+>>> concatmapl(str.upper, ["sofia", "maria"])      # concatmapl = cfd(list, concat)(map)
+['S', 'O', 'F', 'I', 'A', 'M', 'A', 'R', 'I', 'A']
+```
+
+#### Lazy Evaluation: `lazy` and `force`
+`lazy` delays the evaluation of a function(or expression) using `python`s generator. `force` forces the delayed-expression to be fully evaluated.
+
+```python
+>>> %timeit pow(2, 12345)    # 2 ** 12345
+24 µs ± 33.5 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+
+# See the evaluation was delayed
+>>> %timeit lazy(pow, 2, 12345)
+1.46 µs ± 14.9 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each
+
+>>> r = lazy(pow, 2, 12345)
+>>> r()       # fully evaluate it!
+
+# or
+>>> force(r)  # like Haskell's "force", x `seq` x.
+
+>>> replicate(5, random_int(1, 10))    # wrong. not wanted.
+[7, 7, 7, 7, 7]        # evaluation is not delayed. duplication of the same elements.
+
+>>> randos = replicate(5, lazy(random_int, 1, 10))    # [ delayed_fn, delayed_fn .., ]
+
+>>> ml_(force)(randos)  # map 'force' over list of delayed functions
+[6, 2, 5, 1, 9]
+
+>>> forcemap(randos)    # the same as ml_(force)(randos)
+[7, 3, 9, 1, 3]         # expected result
+```
+
+#### Normalize containers: `flat`
+`flat` flattens all kinds of iterables except for string-like object, _regardless of the number of arguments_.
+
+```python
+# Assume that we regenerate 'data' every time in the examples below
+>>> data = [1,2,[3,4,[[[5],6],7,{8},((9),10)],range(11,13)], (x for x in [13,14,15])]
+
+# 'flat' returns a generator. flatl = cfd(list)(flat)
+>>> flatl(data)    # list
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+>>> flatt(data)    # tuple
+(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+
+>>> flatt(data)    # set
+{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+
+>>> flatt(data)    # deque
+deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+
+# regardless of the number of arguments
+>>> flatl(1,[2,{3}],[[[[[4]],5]]], "sofia", "maria")
+[1, 2, 3, 4, 5, 'sofia', 'maria']
+```
+
+`fread` and `fwrite` are used to easily read and write _flattened_ data using `flat`.
+
+```python
+>>> fwrite("family.dat", ["maria",[[[["sofia"]]],[["claire"]],"francis"]])
+'family.dat'
+
+# 'bytes' indicates 'filename'
+>>> [* fread(b"family.dat", [[1,{2}],[[[3],(4,5)]], (x for x in range(6,11))]) ]
+['maria', 'sofia', 'claire', 'francis', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+# with not-exists files
+>>> [* fread(b"fruits", ...[[1,{2}],[[[3],(4,5)]], (x for x in range(6,11))]) ]
+# ...
+# Exception: Error, not found file: fruits
+```
+
+#### Dot-accessible dictionary: `dmap`
+`dmap` is a _yet another_ `dict`. It's exactly the same as `dict` but it enables to access its nested structure with '_dot notations_'.
+
+```python
+>>> d = dmap(name="yunchan lim", age=19, profession="pianist")
+{'name': 'yunchan lim', 'age': 19, 'profession': 'pianist'
+
+>>> d.cliburn.semifinal.mozart.concerto = "No.22"
+>>> d.cliburn.final.rachmaninoff = "crazy!"
+
+# pretty-printer
+>>> import json
+>>> pprint = cf_(print, ff_(json.dumps, indent=2)
+
+>>> pprint(d)
+{
+  "name": "yunchan lim",
+  "age": 19,
+  "profession": "pianist",
+  "cliburn": {
+    "semifinal": {
+      "mozart": {
+        "concerto": "No.22"
+      }
+    },
+    "final": {
+      "rachmaninoff": "crazy!"
+    }
+  }
+}
+
+>>> del d.cliburn
+>>> d.profession = "one-in-a-million talent"
+
+>>> pprint(d)
+{
+  "name": "yunchan lim",
+  "age": 19,
+  "profession": "one-in-a-million talent"
+}
+
+# No such path of keys
+>>> d.bach.chopin.beethoven
+{}
+```
+
+
+#### `raise` with a function(_expression_): `error`
+
+Raise any kinds of exception in `lambda` expression as well.
+
+```python
+>>> error("Error, nice!", e=TypeError)   # by default, e=Exception
+
+>>> error("out of range", e=IndexError)
+
+>>> lambda x, y: x if x is not None else error("Error, got None", e=ValueError)
+```
+
+
+#### Other utils
+_Documents will be updated_
+
+
+#### Real-world Example
+A causal self-attention of the `transformer` model based on `pytorch` can be described as follows. _Somebody_ insists that this helps to follow the process flow without distraction.
+
+```python
+    def forward(self, x):
+        B, S, E = x.size()  # size_batch, size_block (sequence length), size_embed
+        N, H = self.config.num_heads, E // self.config.num_heads  # E == (N * H)
+
+        q, k, v = self.c_attn(x).split(self.config.size_embed, dim=2)
+        q = q.view(B, S, N, H).transpose(1, 2)  # (B, N, S, H)
+        k = k.view(B, S, N, H).transpose(1, 2)  # (B, N, S, H)
+        v = v.view(B, S, N, H).transpose(1, 2)  # (B, N, S, H)
+
+        # Attention(Q, K, V)
+        #   = softmax( Q*K^T / sqrt(d_k) ) * V
+        #         // q*k^T: (B, N, S, H) x (B, N, H, S) -> (B, N, S, S)
+        #   = attention-prob-matrix * V
+        #         // prob @ v: (B, N, S, S) x (B, N, S, H) -> (B, N, S, H)
+        #   = attention-weighted value (attention score)
+
+        return cf_(
+            self.resid_dropout,  # residual dropout
+            self.c_proj,  # linear projection
+            ff_(torch.Tensor.view, B, S, E),  # (B, S, N, H) -> (B, S, E)
+            torch.Tensor.contiguous,  # contiguos in-memory tensor
+            ff_(torch.transpose, 1, 2),  # (B, S, N, H)
+            ff_(torch.matmul, v),  # (B, N, S, S) x (B, N, S, H) -> (B, N, S, H)
+            self.attn_dropout,  # attention dropout
+            ff_(F.softmax, dim=-1),  # softmax
+            ff_(torch.masked_fill, self.mask[:,:,:S,:S] == 0, float("-inf")),  # mask
+            ff_(op.truediv, math.sqrt(k.size(-1))),  # / sqrt(d_k)
+            ff_(torch.matmul, k.transpose(-2, -1)),  # Q @ K^T -> (B, N, S, S)
+        )(q)
+```
