@@ -1,5 +1,7 @@
 # fof
 
+![fof](https://img.shields.io/pypi/v/fof)
+
 `fun on functions` or `francis' odd functions`.
 
 
