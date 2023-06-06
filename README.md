@@ -1,8 +1,8 @@
-# fof
+# foc
 
-![fof](https://img.shields.io/pypi/v/fof)
+![foc](https://img.shields.io/pypi/v/foc)
 
-`fun on functions` or `francis' odd functions`.
+`fun oriented code` or `francis' odd collection`.
 
 
 Functions from the `Python` standard library are great. But some notations are a bit painful and confusing for personal use, so I created this _odd collection of functions_.
@@ -10,17 +10,17 @@ Functions from the `Python` standard library are great. But some notations are a
 
 ### Tl;dr
 
-- `fof` provides a collection of _higher-order functions_ and some (_pure_) helpful functions
-- `fof` respects the `Python` standard library. _Never reinvented the wheel_.
+- `foc` provides a collection of _higher-order functions_ and some (_pure_) helpful functions
+- `foc` respects the `Python` standard library. _Never reinvented the wheel_.
 - _Take a look at the examples below._
 
 ### Use
 ```bash
 # install
-$ pip install -U fof
+$ pip install -U foc
 
 # import (python 3.6+ maybe)
->>> from fof import *
+>>> from foc import *
 ```
 
 ### Ground rules
@@ -39,7 +39,7 @@ $ pip install -U fof
 ### Examples
 > To see all available functions, use `flist()`.
 
-__Note__: `fof`'s functions are valid for any _iterable_ such as `list`, `tuple`, `deque`, `set`, `str`, ...
+__Note__: `foc`'s functions are valid for any _iterable_ such as `list`, `tuple`, `deque`, `set`, `str`, ...
 ```python
 >>> id("francis")
 'francis'
@@ -385,10 +385,10 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 >>> flatt(data)    # tuple
 (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 
->>> flatt(data)    # set
+>>> flats(data)    # set
 {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 
->>> flatt(data)    # deque
+>>> flatd(data)    # deque
 deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 
 # regardless of the number of arguments

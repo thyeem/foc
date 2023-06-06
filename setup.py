@@ -4,15 +4,15 @@ with open("README.md", "r") as f:
     long_decription = f.read()
 
 setuptools.setup(
-    name="fof",
-    version="0.0.1",
+    name="foc",
+    version="0.1.1",
     author="Francis Lim",
     author_email="thyeem@gmail.com",
     description="A collection of python functions for somebody's sanity",
     long_decription=long_decription,
     long_decription_content_type="text/markdown",
     install_requires=[],
-    url="https://github.com/thyeem/fof",
+    url="https://github.com/thyeem/foc",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
