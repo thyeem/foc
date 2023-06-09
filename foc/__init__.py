@@ -64,7 +64,6 @@ __all__ = [
     "rangel",
     "enumeratel",
     "reverse",
-    "reversel",
     "sort",
     "takewhile",
     "takewhilel",
@@ -73,22 +72,25 @@ __all__ = [
     "bimap",
     "first",
     "second",
-    "fold",
-    "fold1",
-    "scan",
+    "foldl",
+    "foldl1",
+    "foldr",
+    "foldr1",
     "scanl",
-    "scan1",
-    "scan1l",
+    "scanl1",
+    "scanr",
+    "scanr1",
     "permutation",
     "combination",
-    "cprod",
+    "cartprod",
+    "cartprodl",
     "concat",
     "concatl",
     "concatmap",
     "concatmapl",
     "lazy",
     "force",
-    "forcemap",
+    "mforce",
     "flat",
     "flatl",
     "flatt",
@@ -241,7 +243,7 @@ def replicate(n, x):
 
 def product(x):
     """product of the elements of given iterable"""
-    return fold1(op.mul, x)
+    return foldl1(op.mul, x)
 
 
 def flip(f):
@@ -395,12 +397,9 @@ enumeratel = cfd(list)(enumerate)
 enumeratel.__doc__ = "unpacks the result in list after `enumerate`"
 
 
-# for clarity of function names
-reverse = reversed
-
-
-reversel = cfd(list)(reverse)
-reversel.__doc__ = "unpacks the result in list after `reverse`"
+def reverse(x):
+    """returns reversed sequence"""
+    return list(x)[::-1]
 
 
 # "for clarity of function names"
@@ -432,32 +431,44 @@ def second(g, x):
     return fst(x), g(snd(x))
 
 
-def fold(f, initial, xs):
-    """folding an foldable object from the left. The same as 'foldl' in Haskell"""
+def foldl(f, initial, xs):
+    """fold an foldable object from the left. The same as 'foldl' in Haskell"""
     return reduce(f, xs, initial)
 
 
-def fold1(f, xs):
+def foldl1(f, xs):
     """equivalent to 'foldl1' in Haskell"""
     return reduce(f, xs)
 
 
-def scan(f, initial, xs):
-    """accumulation from the left. Equivalent to 'scanl' in Haskell"""
+def foldr(f, inital, xs):
+    return reduce(flip(f), xs[::-1], inital)
+
+
+def foldr1(f, xs):
+    return reduce(flip(f), xs[::-1])
+
+
+@cfd(list)
+def scanl(f, initial, xs):
+    """accumulate from the left. Equivalent to 'scanl' in Haskell"""
     return it.accumulate(xs, f, initial=initial)
 
 
-def scan1(f, xs):
+@cfd(list)
+def scanl1(f, xs):
     """equivalent to 'scanl1' in Haskell"""
-    return scan(f, None, xs)
+    return it.accumulate(xs, f)
 
 
-scanl = cfd(list)(scan)
-scanl.__doc__ = "unpacks the result in list after `scan`"
+@cfd(reverse)
+def scanr(f, initial, xs):
+    return it.accumulate(xs[::-1], flip(f), initial=initial)
 
 
-scan1l = cfd(list)(scan1)
-scan1l.__doc__ = "unpacks the result in list after `scan1`"
+@cfd(reverse)
+def scanr1(f, xs):
+    return it.accumulate(xs[::-1], flip(f))
 
 
 def permutation(x, r, rep=False):
@@ -468,8 +479,12 @@ def combination(x, r, rep=False):
     return it.combinations_with_replacement(x, r) if rep else it.combinations(x, r)
 
 
-cprod = ff_(it.product, repeat=1)
-cprod.__doc__ = "returns Cartesian product"
+cartprod = ff_(it.product, repeat=1)
+cartprod.__doc__ = "returns Cartesian product"
+
+
+cartprodl = cfd(list)(cartprod)
+cartprodl.__doc__ = "unpacks the result in list after `cartprod`"
 
 
 # concatenates all elements of iterables"
@@ -502,8 +517,8 @@ def force(x, *args, **kwargs):
     return x(*args, **kwargs) if callable(x) else x
 
 
-forcemap = ml_(force)
-forcemap.__doc__ = "map 'force' over iterables of delayed-evaluation"
+mforce = ml_(force)
+mforce.__doc__ = "map 'force' over iterables of delayed-evaluation"
 
 
 def _is_ns_iter(x):

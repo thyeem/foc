@@ -300,7 +300,7 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 (8, 7)                                             # (3+5, 7)
 
 >>> second(f_(op.mul, 7), (5, 7))                  # second (7*) (5, 7)
-(5, 49)                                             # (5, 7*7)
+(5, 49)                                            # (5, 7*7)
 
 >>> take(5, iterate(lambda x: x**2, 2))            # [2, 2**2, (2**2)**2, ((2**2)**2)**2, ...]
 [2, 4, 16, 256, 65536]
@@ -360,14 +360,14 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 >>> force(r)  # like Haskell's "force", x `seq` x.
 
 >>> replicate(5, random_int(1, 10))    # wrong. not wanted.
-[7, 7, 7, 7, 7]        # evaluation is not delayed. duplication of the same elements.
+[7, 7, 7, 7, 7]         # evaluation is not delayed. duplication of the same elements.
 
 >>> randos = replicate(5, lazy(random_int, 1, 10))    # [ delayed_fn, delayed_fn .., ]
 
 >>> ml_(force)(randos)  # map 'force' over list of delayed functions
 [6, 2, 5, 1, 9]
 
->>> forcemap(randos)    # the same as ml_(force)(randos)
+>>> mforce(randos)      # the same as ml_(force)(randos)
 [7, 3, 9, 1, 3]         # expected result
 ```
 
@@ -417,7 +417,7 @@ deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 
 ```python
 >>> d = dmap(name="yunchan lim", age=19, profession="pianist")
-{'name': 'yunchan lim', 'age': 19, 'profession': 'pianist'
+{'name': 'yunchan lim', 'age': 19, 'profession': 'pianist'}
 
 >>> d.cliburn.semifinal.mozart.concerto = "No.22"
 >>> d.cliburn.final.rachmaninoff = "crazy!"
