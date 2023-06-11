@@ -7,7 +7,7 @@ from collections import deque
 from datetime import datetime, timedelta
 from functools import cache, partial, reduce, wraps
 from inspect import signature
-from itertools import count, cycle, dropwhile, takewhile
+from itertools import count, cycle, dropwhile, takewhile, tee
 from shutil import rmtree
 from textwrap import fill
 
@@ -36,11 +36,11 @@ __all__ = [
     "unwords",
     "lines",
     "unlines",
-    "iterate",
     "repeat",
     "replicate",
     "cycle",
     "count",
+    "tee",
     "product",
     "flip",
     "f_",
@@ -72,6 +72,7 @@ __all__ = [
     "bimap",
     "first",
     "second",
+    "iterate",
     "foldl",
     "foldl1",
     "foldr",
@@ -225,12 +226,6 @@ def lines(x):
 
 def unlines(x):
     return "\n".join(x)
-
-
-def iterate(f, x):
-    while True:
-        yield x
-        x = f(x)
 
 
 def repeat(x):
@@ -431,43 +426,55 @@ def second(g, x):
     return fst(x), g(snd(x))
 
 
+def iterate(f, x):
+    while True:
+        yield x
+        x = f(x)
+
+
 def foldl(f, initial, xs):
-    """fold an foldable object from the left. The same as 'foldl' in Haskell"""
+    """left-associative fold of an iterable. The same as 'foldl' in Haskell"""
     return reduce(f, xs, initial)
 
 
 def foldl1(f, xs):
-    """equivalent to 'foldl1' in Haskell"""
+    """`foldl` without initial value. The same as 'foldl1' in Haskell"""
     return reduce(f, xs)
 
 
 def foldr(f, inital, xs):
+    """right-associative fold of an iterable. The same as 'foldr' in Haskell"""
     return reduce(flip(f), xs[::-1], inital)
 
 
 def foldr1(f, xs):
+    """`foldr` without initial value. The same as 'foldr1' in Haskell"""
     return reduce(flip(f), xs[::-1])
 
 
 @cfd(list)
 def scanl(f, initial, xs):
-    """accumulate from the left. Equivalent to 'scanl' in Haskell"""
+    """returns a list of successive reduced values from the left
+    The same as `scanl` in Haskell"""
     return it.accumulate(xs, f, initial=initial)
 
 
 @cfd(list)
 def scanl1(f, xs):
-    """equivalent to 'scanl1' in Haskell"""
+    """`scanl` without starting value. The same as 'scanl1' in Haskell"""
     return it.accumulate(xs, f)
 
 
 @cfd(reverse)
 def scanr(f, initial, xs):
+    """returns a list of successive reduced values from the right
+    The same as `scanr` in Haskell"""
     return it.accumulate(xs[::-1], flip(f), initial=initial)
 
 
 @cfd(reverse)
 def scanr1(f, xs):
+    """`scanr` without starting value. The same as 'scanr1' in Haskell"""
     return it.accumulate(xs[::-1], flip(f))
 
 
@@ -595,7 +602,7 @@ def chunk_of(n, x, fill=None):
 def capture(p, string):
     x = captures(p, string)
     if x:
-        return x.pop()
+        return fst(x)
 
 
 def captures(p, string):
@@ -810,8 +817,8 @@ def __sig__():
     return dmap({x: x + sig(eval(x)) for x in __all__[3:]})
 
 
-def flist(o=False):
-    if o:
+def flist(to_dict=False):
+    if to_dict:
         return __sig__()
     else:
         nprint(__sig__(), _indent=14)

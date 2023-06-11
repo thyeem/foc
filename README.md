@@ -19,9 +19,11 @@ Functions from the `Python` standard library are great. But some notations are a
 # install
 $ pip install -U foc
 
-# import (python 3.6+ maybe)
+# import
 >>> from foc import *
 ```
+
+> To list all available functions, call `flist()`.
 
 ### Ground rules
 - Followed `Haskell`-like function names and arguments order
@@ -37,8 +39,6 @@ $ pip install -U foc
 - No unnessary wrapping objects.
 
 ### Examples
-> To see all available functions, use `flist()`.
-
 __Note__: `foc`'s functions are valid for any _iterable_ such as `list`, `tuple`, `deque`, `set`, `str`, ...
 ```python
 >>> id("francis")
@@ -50,16 +50,16 @@ __Note__: `foc`'s functions are valid for any _iterable_ such as `list`, `tuple`
 >>> snd(("sofia", "maria", "claire"))
 'maria'
 
->>> nth(["sofia", "maria", "claire"], 3)    # not list index, but literally n-th
+>>> nth(3, ["sofia", "maria", "claire"])    # not list index, but literally n-th
 'claire'
 
 >>> take(3, range(5, 10))
 [5, 6, 7]
 
->>> list(drop(3, "github"))    # `drop` returns a generator
+>>> list(drop(3, "github"))   # `drop` returns a generator
 ['h', 'u', 'b']
 
->>> head(range(1,5))           # range(1, 5) = [1, 2, 3, 4]
+>>> head(range(1,5))          # range(1, 5) = [1, 2, 3, 4]
 1
 
 >>> last(range(1,5))
@@ -98,19 +98,19 @@ True
 >>> unlines(['fun', 'on', 'functions'])
 ("fun\non\nfunctions")
 
->>> take(3, repeat(5))    # repeat(5) = [5, 5, ...]
+>>> take(3, repeat(5))        # repeat(5) = [5, 5, ...]
 [5, 5, 5]
 
->>> take(5, cycle("fun"))    # cycle("fun") = ['f', 'u', 'n', 'f', 'u', 'n', ...]
+>>> take(5, cycle("fun"))     # cycle("fun") = ['f', 'u', 'n', 'f', 'u', 'n', ...]
 ['f', 'u', 'n', 'f', 'u']
 
->>> replicate(3, 5)   # the same as 'take(3, repeat(5))'
+>>> replicate(3, 5)           # the same as 'take(3, repeat(5))'
 [5, 5, 5]
 
->>> take(3, count(2))    # count(2) = [2, 3, 4, 5, ...]
+>>> take(3, count(2))         # count(2) = [2, 3, 4, 5, ...]
 [2, 3, 4]
 
->>> take(3, count(2, 3))    # count(2, 3) = [2, 5, 8, 11, ...]
+>>> take(3, count(2, 3))      # count(2, 3) = [2, 5, 8, 11, ...]
 [2, 5, 8]
 ```
 
@@ -308,34 +308,50 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 >>> [* takewhile(even, [2, 4, 6, 1, 3, 5]) ]       # `takewhile` returns a generator
 [2, 4, 6]
 
->>> takewhilel(even, [2, 4, 6, 1, 3, 5]) ]
+>>> takewhilel(even, [2, 4, 6, 1, 3, 5])
 [2, 4, 6]
 
 >>> [* dropwhile(even, [2, 4, 6, 1, 3, 5]) ]       # `dropwhile` returns a generator
 [1, 3, 5]
 
->>> dropwhilel(even, [2, 4, 6, 1, 3, 5]) ]
+>>> dropwhilel(even, [2, 4, 6, 1, 3, 5])
 [1, 3, 5]
 
-# fold with a given initial value
->>> fold(op.add, 3, range(1, 6))                   # foldl (+) 3 [1..5]
-18
+# fold with a given initial value from the left
+>>> foldl(op.sub, 10, range(1, 5))                 # foldl (-) 10 [1..4]
+0
 
-# fold without an initial (first item used)
->>> fold1(op.add, range(1, 6))                     # foldl1 (+) [1..5]
-15
+# fold with a given initial value from the right
+>>> foldr(op.sub, 10, range(1, 5))                 # foldr (-) 10 [1..4]
+8
 
-# scan with a given initial value (see also 'scan')
->>> scanl(op.add, 3, range(1, 6))                  # scanl (+) 3 [1..5]
-[3, 4, 6, 9, 13, 18]
+# `foldl` without an initial value (used first item instead)
+>>> foldl1(op.sub, range(1, 5))                    # foldl1 (-) [1..4]
+-8
 
-# scan without an initial (see also 'scan1')
->>> scan1l(op.add, range(1, 6))                    # scan1l (+) [1..5]
-[1, 3, 6, 10, 15]
+# `foldr` without an initial value (used first item instead)
+>>> foldr1(op.sub, range(1, 5))                    # foldr1 (-) [1..4]
+-2
+
+# accumulate reduced values from the left
+>>> scanl(op.sub, 10, range(1, 5))                 # scanl (-) 10 [1..4]
+[10, 9, 7, 4, 0]
+
+# accumulate reduced values from the right
+>>> scanr(op.sub, 10, range(1, 5))                 # scanr (-) 10 [1..4]
+[8, -7, 9, -6, 10]
+
+# `scanl` but no starting value
+>>> scanl1(op.sub, range(1, 5))                    # scanl1 (-) [1..4]
+[1, -1, -4, -8]
+
+# `scanr` but no starting value
+>>> scanr1(op.sub, range(1, 5))                    # scanr1 (-) [1..4]
+[-2, 3, -1, 4]
 
 # See also 'concat' that returns a generator
 >>> concatl(["sofia", "maria"])
-['s', 'o', 'f', 'i', 'a', 'm', 'a', 'r', 'i', 'a'
+['s', 'o', 'f', 'i', 'a', 'm', 'a', 'r', 'i', 'a']
 
 # See also 'concatmap' that returns a generator
 >>> concatmapl(str.upper, ["sofia", "maria"])      # concatmapl = cfd(list, concat)(map)
