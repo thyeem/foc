@@ -86,6 +86,9 @@ False
 >>> null([]) == null(()) == null({}) == null("")
 True
 
+>>> elem(5, range(10))
+True
+
 >>> words("fun on functions")
 ['fun', 'on', 'functions']
 
@@ -124,19 +127,17 @@ True
 > _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
 
 ```python
-import operator as op
+>>> f_("+", 5)(2)    # the same as `(5+) 2` in Haskell
+7                    # 5 + 2
 
->>> f_(op.add, 5)(2)    # the same as `(5+) 2` in Haskell
-7                       # 5 + 2
+>>> ff_("+", 5)(2)   # the same as `(+5) 2 in Haskell`
+7                    # 2 + 5
 
->>> ff_(op.add, 5)(2)   # the same as `(+5) 2 in Haskell`
-7                       # 2 + 5
+>>> f_("-", 5)(2)    # the same as `(5-) 2`
+3                    # 5 - 2
 
->>> f_(op.sub, 5)(2)    # the same as `(5-) 2`
-3                       # 5 - 2
-
->>> ff_(op.sub, 5)(2)   # the same as `(subtract 5) 2`
--3                      # 2 - 5
+>>> ff_("-", 5)(2)   # the same as `(subtract 5) 2`
+-3                   # 2 - 5
 
 # with N-ary function
 >>> def print_args(a, b, c, d): print(f"{a}-{b}-{c}-{d}")
@@ -160,17 +161,17 @@ When currying a given function, `c_` takes arguments _from the left_ while `cc_`
 
 ```python
 # currying from the left args
->>> c_(op.add)(5)(2)    # 5 + 2
+>>> c_("+")(5)(2)    # 5 + 2
 7
 
->>> c_(op.sub)(5)(2)    # 5 - 2
+>>> c_("-")(5)(2)    # 5 - 2
 3
 
 # currying from the right args
->>> cc_(op.add)(5)(2)   # 2 + 5
+>>> cc_("+")(5)(2)   # 2 + 5
 7
 
->>> cc_(op.sub)(5)(2)   # 2 - 5
+>>> cc_("-")(5)(2)   # 2 - 5
 -3
 
 # with N-ary function
@@ -187,26 +188,27 @@ When currying a given function, `c_` takes arguments _from the left_ while `cc_`
 > _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
 
 ```python
->>> pow3 = f_(op.pow, 3)      # the same as (3^) in Haskell
->>> add5 = f_(op.add, 5)      # the same as (5+)
->>> mul7 = f_(op.mul, 7)      # the same as (7*)
+>>> square = ff_("**", 2)     # the same as (^2) in Haskell
+>>> add_by_5 = ff_("+", 5)    # the same as (+5)
+>>> mul_by_7 = ff_("*", 7)    # the same as (*7)
 
->>> cf_(mul7, add5, pow3)(2)  # (7*) . (5+) . (3^) $ 2
-98                            # mul7(add5(pow3(2))) = 7 * (5 + (3 ^ 2))
+>>> cf_(mul_by_7, add_by_5, square)(3)   # (*7) . (+5) . (^2) $ 2
+98                            # mul_by_7(add_by_5(square(2))) = ((3 ^ 2) + 5) * 7
 
->>> @cfd(mul7, add5, pow3)
+>>> @cfd(mul_by_7, add_by_5, square)
 ... def even_num_less_than(x):
 ...     return len(list(filter(even, range(x))))
 
 >>> even_num_less_than(7)     # even numbers less than 7 = len({0, 2, 4, 6}) = 4
-602                           # mul7(add5(pow3(even_num_less_than(7)))) = 7 * (5 + (3 ^ 4))
+147                           # mul_by_7(add_by_5(square(4))) = ((4 ^ 2) + 5) * 7
+
+# the meaning of decorating a function with a composition of functions
+g = cfd(a, b, c, d)(f)   # g = (a . b . c . d)(f)
 
 # the same
->>> cf_(mul7, add5, pow3, even_num_less_than)(7)
-602
+cfd(a, b, c, d)(f)(x)    # g(x) = a(b(c(d(f(x)))))
 
->>> cfd(mul7, add5, pow3)(even_num_less_than)(7)
-602
+cf_(a, b, c, d, f)(x)    # (a . b . c . d . f)(x) = a(b(c(d(f(x))))) = g(x)
 ```
 
 `cfd` is very handy and useful to recreate previously defined functions by composing functions. All you need is to write a basic functions to do fundamental things.
@@ -237,16 +239,16 @@ Unpacking with `list(..)` or `[* .. ]` is sometimes very annoying. So often use 
 ```
 
 ```python
->>> list(map(f_(op.mul, 8), range(1, 6)))   # (8*) <$> [1..5]
+>>> list(map(f_("*", 8), range(1, 6)))   # (8*) <$> [1..5]
 [8, 16, 24, 32, 40]                         # [ (lambda x: 8*x)(x) for x in range(1, 6) ]
 
->>> mapl(f_(op.mul, 8), range(1, 6))        # (8*) <$> [1..5]
+>>> mapl(f_("*", 8), range(1, 6))        # (8*) <$> [1..5]
 [8, 16, 24, 32, 40]
 
->>> ml_(f_(op.mul, 8))(range(1, 6))         # ((8*) <$>) [1..5]
+>>> ml_(f_("*", 8))(range(1, 6))         # ((8*) <$>) [1..5]
 [8, 16, 24, 32, 40]
 
->>> mml_(range(1, 6))(f_(op.mul, 8))        # (<$> [1..5]) (8*)
+>>> mml_(range(1, 6))(f_("*", 8))        # (<$> [1..5]) (8*)
 [8, 16, 24, 32, 40]
 ```
 
@@ -279,13 +281,13 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 
 >>> primes_lt_50 = vvl_([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47])
 
->>> primes_lt_50(ff_(op.gt, 20))    # (> 20)
+>>> primes_lt_50(ff_(">", 20))    # (> 20)
 [23, 29, 31, 37, 41, 43, 47]
 
 >>> primes_lt_50(lambda x: x % 3 == 2)
 [2, 5, 11, 17, 23, 29, 41, 47]
 
->>> primes_lt_50(cf_(ff_(op.eq, 2), ff_(op.mod, 3)))    # ((== 2) . (% 3))
+>>> primes_lt_50(cf_(ff_("==", 2), ff_("%", 3)))    # ((== 2) . (% 3))
 [2, 5, 11, 17, 23, 29, 41, 47]
 ```
 
@@ -293,13 +295,13 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 > To see all available functions, use `flist()` to print to `stdout` or `usage = flist(True)`.
 
 ```python
->>> bimap(f_(op.add, 3), f_(op.mul, 7), (5, 7))    # bimap (3+) (7*) (5, 7)
+>>> bimap(f_("+", 3), f_("*", 7), (5, 7))    # bimap (3+) (7*) (5, 7)
 (8, 49)                                            # (3+5, 7*7)
 
->>> first(f_(op.add, 3), (5, 7))                   # first (3+) (5, 7)
+>>> first(f_("+", 3), (5, 7))                   # first (3+) (5, 7)
 (8, 7)                                             # (3+5, 7)
 
->>> second(f_(op.mul, 7), (5, 7))                  # second (7*) (5, 7)
+>>> second(f_("*", 7), (5, 7))                  # second (7*) (5, 7)
 (5, 49)                                            # (5, 7*7)
 
 >>> take(5, iterate(lambda x: x**2, 2))            # [2, 2**2, (2**2)**2, ((2**2)**2)**2, ...]
@@ -318,35 +320,35 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 [1, 3, 5]
 
 # fold with a given initial value from the left
->>> foldl(op.sub, 10, range(1, 5))                 # foldl (-) 10 [1..4]
+>>> foldl("-", 10, range(1, 5))                 # foldl (-) 10 [1..4]
 0
 
 # fold with a given initial value from the right
->>> foldr(op.sub, 10, range(1, 5))                 # foldr (-) 10 [1..4]
+>>> foldr("-", 10, range(1, 5))                 # foldr (-) 10 [1..4]
 8
 
 # `foldl` without an initial value (used first item instead)
->>> foldl1(op.sub, range(1, 5))                    # foldl1 (-) [1..4]
+>>> foldl1("-", range(1, 5))                    # foldl1 (-) [1..4]
 -8
 
 # `foldr` without an initial value (used first item instead)
->>> foldr1(op.sub, range(1, 5))                    # foldr1 (-) [1..4]
+>>> foldr1("-", range(1, 5))                    # foldr1 (-) [1..4]
 -2
 
 # accumulate reduced values from the left
->>> scanl(op.sub, 10, range(1, 5))                 # scanl (-) 10 [1..4]
+>>> scanl("-", 10, range(1, 5))                 # scanl (-) 10 [1..4]
 [10, 9, 7, 4, 0]
 
 # accumulate reduced values from the right
->>> scanr(op.sub, 10, range(1, 5))                 # scanr (-) 10 [1..4]
+>>> scanr("-", 10, range(1, 5))                 # scanr (-) 10 [1..4]
 [8, -7, 9, -6, 10]
 
 # `scanl` but no starting value
->>> scanl1(op.sub, range(1, 5))                    # scanl1 (-) [1..4]
+>>> scanl1("-", range(1, 5))                    # scanl1 (-) [1..4]
 [1, -1, -4, -8]
 
 # `scanr` but no starting value
->>> scanr1(op.sub, range(1, 5))                    # scanr1 (-) [1..4]
+>>> scanr1("-", range(1, 5))                    # scanr1 (-) [1..4]
 [-2, 3, -1, 4]
 
 # See also 'concat' that returns a generator
@@ -522,7 +524,7 @@ A causal self-attention of the `transformer` model based on `pytorch` can be des
             self.attn_dropout,  # attention dropout
             ff_(F.softmax, dim=-1),  # softmax
             ff_(torch.masked_fill, self.mask[:,:,:S,:S] == 0, float("-inf")),  # mask
-            ff_(op.truediv, math.sqrt(k.size(-1))),  # / sqrt(d_k)
+            ff_("/", math.sqrt(k.size(-1))),  # / sqrt(d_k)
             ff_(torch.matmul, k.transpose(-2, -1)),  # Q @ K^T -> (B, N, S, S)
         )(q)
 ```

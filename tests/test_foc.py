@@ -106,6 +106,12 @@ def test_null():
     assert not null(range(1, 5))
 
 
+def test_elem():
+    assert elem("f", "francis")
+    assert elem(5, range(10))
+    assert elem("sofia", dict(sofia="painter", maria="ballerina"))
+
+
 def test_words():
     assert words("fun on functions") == ["fun", "on", "functions"]
 
@@ -135,10 +141,10 @@ def test_flip():
 
 
 def test_ff_():
-    assert f_(op.add, 5)(2) == 7
-    assert ff_(op.add, 5)(2) == 7
-    assert f_(op.sub, 5)(2) == 3
-    assert ff_(op.sub, 5)(2) == -3
+    assert f_("+", 5)(2) == 7
+    assert ff_("+", 5)(2) == 7
+    assert f_("-", 5)(2) == 3
+    assert ff_("-", 5)(2) == -3
     assert f_(fn, 1, 2)(3, 4) == "1-2-3-4"
     assert f_(fn, 1, 2, 3)(4) == "1-2-3-4"
     assert ff_(fn, 1, 2)(3, 4) == "3-4-1-2"
@@ -146,22 +152,22 @@ def test_ff_():
 
 
 def test_curry():
-    assert c_(op.add)(5)(2) == 7
-    assert c_(op.add)(2)(5) == 7
-    assert c_(op.sub)(5)(2) == 3
-    assert c_(op.sub)(2)(5) == -3
-    assert c_(op.sub)(5)(2) == cc_(op.sub)(2)(5)
+    assert c_("+")(5)(2) == 7
+    assert c_("+")(2)(5) == 7
+    assert c_("-")(5)(2) == 3
+    assert c_("-")(2)(5) == -3
+    assert c_("-")(5)(2) == cc_("-")(2)(5)
     assert c_(fn)(1)(2)(3)(4) == "1-2-3-4"
     assert c_(fn)(4)(3)(2)(1) == "4-3-2-1"
     assert c_(fn)(4)(3)(2)(1) == cc_(fn)(1)(2)(3)(4)
 
 
 def test_cf_():
-    assert cf_(f_(op.mul, 7), f_(op.add, 5), f_(op.pow, 3))(2) == 98
+    assert cf_(f_("*", 7), f_("+", 5), f_("**", 3))(2) == 98
 
 
 def test_cfd():
-    @cfd(f_(op.mul, 7), f_(op.add, 5), ff_(op.pow, 3))
+    @cfd(f_("*", 7), f_("+", 5), ff_("**", 3))
     def f(x, y):
         return x**2 + y**2
 
@@ -169,19 +175,19 @@ def test_cfd():
 
 
 def test_mapl():
-    fn = f_(op.mul, 8)
+    fn = f_("*", 8)
     assert mapl(fn, range(1, 6)) == [8, 16, 24, 32, 40]
     assert list(map(fn, range(1, 6))) == mapl(fn, range(1, 6))
 
 
 def test_ml():
-    fn = f_(op.mul, 8)
+    fn = f_("*", 8)
     assert ml_(fn)(range(1, 6)) == [8, 16, 24, 32, 40]
     assert list(m_(fn)(range(1, 6))) == ml_(fn)(range(1, 6))
 
 
 def test_mml():
-    fn = f_(op.mul, 8)
+    fn = f_("*", 8)
     assert mml_(range(1, 6))(fn) == [8, 16, 24, 32, 40]
     assert list(mm_(range(1, 6))(fn)) == mml_(range(1, 6))(fn)
 
@@ -217,15 +223,15 @@ def test_dropwhilel():
 
 
 def test_bimap():
-    assert bimap(f_(op.add, 3), f_(op.mul, 7), (5, 7)) == (8, 49)
+    assert bimap(f_("+", 3), f_("*", 7), (5, 7)) == (8, 49)
 
 
 def test_first():
-    assert first(f_(op.add, 3), (5, 7)) == (8, 7)
+    assert first(f_("+", 3), (5, 7)) == (8, 7)
 
 
 def test_second():
-    assert second(f_(op.mul, 7), (5, 7)) == (5, 49)
+    assert second(f_("*", 7), (5, 7)) == (5, 49)
 
 
 def test_iterate():
@@ -233,35 +239,35 @@ def test_iterate():
 
 
 def test_foldl():
-    assert foldl(op.sub, 10, range(1, 5)) == 0
+    assert foldl("-", 10, range(1, 5)) == 0
 
 
 def test_foldr():
-    assert foldr(op.sub, 10, range(1, 5)) == 8
+    assert foldr("-", 10, range(1, 5)) == 8
 
 
 def test_foldl1():
-    assert foldl1(op.sub, range(1, 5)) == -8
+    assert foldl1("-", range(1, 5)) == -8
 
 
 def test_foldr1():
-    assert foldr1(op.sub, range(1, 5)) == -2
+    assert foldr1("-", range(1, 5)) == -2
 
 
 def test_scanl():
-    assert scanl(op.sub, 10, range(1, 5)) == [10, 9, 7, 4, 0]
+    assert scanl("-", 10, range(1, 5)) == [10, 9, 7, 4, 0]
 
 
 def test_scanr():
-    assert scanr(op.sub, 10, range(1, 5)) == [8, -7, 9, -6, 10]
+    assert scanr("-", 10, range(1, 5)) == [8, -7, 9, -6, 10]
 
 
 def test_scanl1():
-    assert scanl1(op.sub, range(1, 5)) == [1, -1, -4, -8]
+    assert scanl1("-", range(1, 5)) == [1, -1, -4, -8]
 
 
 def test_scanr1():
-    assert scanr1(op.sub, range(1, 5)) == [-2, 3, -1, 4]
+    assert scanr1("-", range(1, 5)) == [-2, 3, -1, 4]
 
 
 def test_concatl():

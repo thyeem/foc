@@ -13,10 +13,8 @@ from textwrap import fill
 
 __all__ = [
     "flist",
-    "op",
     "deque",
     "safe",
-    "not_",
     "id",
     "fst",
     "snd",
@@ -36,6 +34,7 @@ __all__ = [
     "unwords",
     "lines",
     "unlines",
+    "elem",
     "repeat",
     "replicate",
     "cycle",
@@ -69,6 +68,14 @@ __all__ = [
     "takewhilel",
     "dropwhile",
     "dropwhilel",
+    "tup",
+    "not_",
+    "and_",
+    "or_",
+    "in_",
+    "is_",
+    "is_not_",
+    "bop",
     "bimap",
     "first",
     "second",
@@ -135,10 +142,6 @@ def safe(f):
             return
 
     return wrapper
-
-
-# `not` as a function
-not_ = op.not_
 
 
 def id(x):
@@ -228,6 +231,10 @@ def unlines(x):
     return "\n".join(x)
 
 
+def elem(x, xs):
+    return x in xs
+
+
 def repeat(x):
     return (x for _ in it.count())
 
@@ -241,6 +248,7 @@ def product(x):
     return foldl1(op.mul, x)
 
 
+@cache
 def flip(f):
     """flip(f) takes its arguments in the reverse order of f"""
 
@@ -251,13 +259,16 @@ def flip(f):
     return wrapper
 
 
-# for decreasing verbosity
-f_ = partial
+def f_(f, *args, **kwargs):
+    """build left-associative partial application,
+    where the given function's arguments partially evaluation from the left"""
+
+    return partial(bop(f), *args, **kwargs)
 
 
 def ff_(f, *args, sgra=False, **kwargs):
-    """build partial application after getting a function flipped:
-    'flipped' means the original funtion is partially applied from the right.
+    """build left-associative partial application,
+    where the given function's arguments partially evaluation from the right
 
     Passing arguments in reverse order for a function is painful.
     `ff_` takes arguments _in order_ by default (`sgra=False`).
@@ -266,9 +277,9 @@ def ff_(f, *args, sgra=False, **kwargs):
     naming: 'sgra' == 'args'[::-1]
     """
     if sgra:
-        return f_(flip(f), *args, **kwargs)
+        return f_(flip(bop(f)), *args, **kwargs)
     else:
-        return flip(f_(flip(f), *args[::-1], **kwargs))
+        return flip(f_(flip(bop(f)), *args[::-1], **kwargs))
 
 
 def curry(f, n=None):
@@ -277,6 +288,7 @@ def curry(f, n=None):
 
     This function takes positional arguments only when currying.
     Use partial application `f_` before currying if you need to change kwargs"""
+    f = bop(f)
     n = n if n else len(fn_args(f))
 
     @wraps(f)
@@ -290,19 +302,18 @@ def curry(f, n=None):
 c_ = curry
 
 
-def cc_(f, *args, **kwargs):
+def cc_(f):
     """build curried function that takes arguments from the right"""
-    return c_(flip(f), *args, **kwargs)
+    return c_(flip(bop(f)))
 
 
 def cf_(*fs, rep=None):
     """compose a given list of functions then return the composed function"""
 
-    def wrapper(f, g):
+    def compose(f, g):
         return lambda x: f(g(x))
 
-    args = fs * rep if rep else fs
-    return reduce(wrapper, args, id)
+    return reduce(compose, fs * rep if rep else fs)
 
 
 def cfd(*fs, rep=None):
@@ -310,14 +321,14 @@ def cfd(*fs, rep=None):
     decorate a function using the composition of the given functions.
     """
 
-    def comp(g):
-        @wraps(g)
+    def cfdeco(f):
+        @wraps(f)
         def wrapper(*args, **kwargs):
-            return cf_(*fs, rep=rep)(g(*args, *kwargs))
+            return cf_(*fs, rep=rep)(f(*args, *kwargs))
 
         return wrapper
 
-    return comp
+    return cfdeco
 
 
 def m_(f):
@@ -409,6 +420,66 @@ dropwhilel = cfd(list)(dropwhile)
 dropwhilel.__doc__ = "unpacks the result in list after `dropwhile`"
 
 
+def tup(*args):
+    """construct tuple with given arguments: this mirros `dict(**kwargs)`"""
+    return args
+
+
+def not_(x):
+    """`not` as a function"""
+    return not x
+
+
+def and_(a, b):
+    """`and` as a function"""
+    return a and b
+
+
+def or_(a, b):
+    """`and` as a function"""
+    return a or b
+
+
+# `in` as a function
+in_ = op.contains
+
+
+# `is` as a function
+is_ = op.is_
+
+
+# `is not` as a function
+is_not_ = op.is_not
+
+
+@cache
+def bop(f):
+    """symbolic binary operators"""
+    return {
+        "+": op.add,
+        "-": op.sub,
+        "*": op.mul,
+        "/": op.truediv,
+        "//": op.floordiv,
+        "**": op.pow,
+        "@": op.matmul,
+        "%": op.mod,
+        "&": op.and_,
+        "|": op.or_,
+        "^": op.xor,
+        "<<": op.lshift,
+        ">>": op.rshift,
+        "==": op.eq,
+        "!=": op.ne,
+        ">": op.gt,
+        ">=": op.ge,
+        "<": op.lt,
+        "<=": op.le,
+        "[]": op.getitem,
+        ",": lambda a, b: (a, b),
+    }.get(f, f)
+
+
 def bimap(f, g, x):
     """map over both 'first' and 'second' arguments at the same time
     bimap(f, g) == first(f) . second(g)
@@ -434,48 +505,48 @@ def iterate(f, x):
 
 def foldl(f, initial, xs):
     """left-associative fold of an iterable. The same as 'foldl' in Haskell"""
-    return reduce(f, xs, initial)
+    return reduce(bop(f), xs, initial)
 
 
 def foldl1(f, xs):
     """`foldl` without initial value. The same as 'foldl1' in Haskell"""
-    return reduce(f, xs)
+    return reduce(bop(f), xs)
 
 
 def foldr(f, inital, xs):
     """right-associative fold of an iterable. The same as 'foldr' in Haskell"""
-    return reduce(flip(f), xs[::-1], inital)
+    return reduce(flip(bop(f)), xs[::-1], inital)
 
 
 def foldr1(f, xs):
     """`foldr` without initial value. The same as 'foldr1' in Haskell"""
-    return reduce(flip(f), xs[::-1])
+    return reduce(flip(bop(f)), xs[::-1])
 
 
 @cfd(list)
 def scanl(f, initial, xs):
     """returns a list of successive reduced values from the left
     The same as `scanl` in Haskell"""
-    return it.accumulate(xs, f, initial=initial)
+    return it.accumulate(xs, bop(f), initial=initial)
 
 
 @cfd(list)
 def scanl1(f, xs):
     """`scanl` without starting value. The same as 'scanl1' in Haskell"""
-    return it.accumulate(xs, f)
+    return it.accumulate(xs, bop(f))
 
 
 @cfd(reverse)
 def scanr(f, initial, xs):
     """returns a list of successive reduced values from the right
     The same as `scanr` in Haskell"""
-    return it.accumulate(xs[::-1], flip(f), initial=initial)
+    return it.accumulate(xs[::-1], flip(bop(f)), initial=initial)
 
 
 @cfd(reverse)
 def scanr1(f, xs):
     """`scanr` without starting value. The same as 'scanr1' in Haskell"""
-    return it.accumulate(xs[::-1], flip(f))
+    return it.accumulate(xs[::-1], flip(bop(f)))
 
 
 def permutation(x, r, rep=False):
@@ -512,6 +583,8 @@ concatmapl.__doc__ = "unpacks the result in list after `concatmap`"
 
 def lazy(f, *args, **kwargs):
     """delays the evaluation of a function(or expression) using generator"""
+
+    f = bop(f)
 
     def g(*a, **k):
         yield f(*a, **k) if callable(f) else f
@@ -743,7 +816,7 @@ def singleton(cls):
 
 
 def polling(f, sec, args=None, kwargs=None):
-    def wrapper():
+    def go():
         polling(f, sec, args, kwargs)
         if args and kwargs:
             f(*args, **kwargs)
@@ -754,7 +827,7 @@ def polling(f, sec, args=None, kwargs=None):
         else:
             f()
 
-    t = threading.Timer(sec, wrapper, args, kwargs)
+    t = threading.Timer(sec, go, args, kwargs)
     t.start()
     return t
 
@@ -814,7 +887,7 @@ def __sig__():
         except:
             return " is valid, but live-inspect not available"
 
-    return dmap({x: x + sig(eval(x)) for x in __all__[3:]})
+    return dmap({x: x + sig(eval(x)) for x in __all__[2:]})
 
 
 def flist(to_dict=False):
