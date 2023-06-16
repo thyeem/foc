@@ -435,43 +435,33 @@ deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 
 ```python
 >>> d = dmap(name="yunchan lim", age=19, profession="pianist")
-{'name': 'yunchan lim', 'age': 19, 'profession': 'pianist'}
+>>> nprint(d)    # neatly print 'dict' or 'dict-items'
+        name  |  yunchan lim
+         age  |  19
+  profession  |  pianist
 
->>> d.cliburn.semifinal.mozart.concerto = "No.22"
->>> d.cliburn.final.rachmaninoff = "crazy!"
-
-# pretty-printer
->>> import json
->>> pprint = cf_(print, ff_(json.dumps, indent=2)
-
->>> pprint(d)
-{
-  "name": "yunchan lim",
-  "age": 19,
-  "profession": "pianist",
-  "cliburn": {
-    "semifinal": {
-      "mozart": {
-        "concerto": "No.22"
-      }
-    },
-    "final": {
-      "rachmaninoff": "crazy!"
-    }
-  }
-}
+# just put the value in the desired key path
+>>> d.cliburn.semifinal.mozart = "piano concerto no.22"
+>>> d.cliburn.semifinal.liszt = "12 transcendental etudes"
+>>> d.cliburn.final.beethoven = "piano concerto no.3"
+>>> d.cliburn.final.rachmaninoff = "piano concerto no.3"
+>>> nprint(d)
+        name  |  yunchan lim
+         age  |  19
+  profession  |  pianist
+     cliburn  |   semifinal  |   mozart  |  piano concerto no.22
+              |              |    liszt  |  12 transcendental etudes
+              |       final  |      beethoven  |  piano concerto no.3
+              |              |   rachmaninoff  |  piano concerto no.3
 
 >>> del d.cliburn
 >>> d.profession = "one-in-a-million talent"
+>>> nprint(d)
+        name  |  yunchan lim
+         age  |  19
+  profession  |  one-in-a-million talent
 
->>> pprint(d)
-{
-  "name": "yunchan lim",
-  "age": 19,
-  "profession": "one-in-a-million talent"
-}
-
-# No such path of keys
+# No such key path
 >>> d.bach.chopin.beethoven
 {}
 ```

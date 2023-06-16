@@ -112,6 +112,7 @@ __all__ = [
     "captures",
     "error",
     "HOME",
+    "cd",
     "pwd",
     "normpath",
     "exists",
@@ -248,7 +249,6 @@ def product(x):
     return foldl1(op.mul, x)
 
 
-@cache
 def flip(f):
     """flip(f) takes its arguments in the reverse order of f"""
 
@@ -690,6 +690,14 @@ def HOME():
     return os.getenv("HOME")
 
 
+def cd(path=None):
+    if path:
+        os.chdir(normpath(path, abs=True))
+    else:
+        os.chdir(HOME())
+    return pwd()
+
+
 def pwd():
     return os.getcwd()
 
@@ -832,24 +840,42 @@ def polling(f, sec, args=None, kwargs=None):
     return t
 
 
-def neatly(_width=100, _indent=12, **kwargs):
-    """generate justified string using the given **kwargs"""
+def neatly(x={}, _width=100, _indent=None, **kwargs):
+    """generate justified string of 'dict' or 'dict-items'"""
+    d = {**x, **kwargs}
+    _indent = _indent or max(map(len, d.keys())) + 1
+    if _width < _indent:
+        error(f"Error, neatly print with invalid width: {_width}")
+
+    def go(x):
+        if isinstance(x, dict):
+            return neatly(**x, _width=_width - _indent - 6)
+        else:
+            return x
+
+    def lf(k, v):
+        return [
+            (" ", v) if i else (k, v)
+            for i, v in enumerate(filter(cf_(not_, null), lines(f"{v}")))
+        ]
+
     return "\n".join(
         fill(
             f"{v}",
             width=_width,
             break_on_hyphens=False,
             drop_whitespace=False,
-            initial_indent=f"{k:>{_indent}}  |  ",
+            initial_indent=f"{k.replace('_','-'):>{_indent}}  |  ",
             subsequent_indent=f"{' ':>{_indent}}  |  ",
         )
-        for k, v in kwargs.items()
+        for k, v in d.items()
+        for k, v in lf(k, go(v))
     )
 
 
-def nprint(x, **kwargs):
+def nprint(x={}, _width=100, _indent=None, **kwargs):
     """neatly print dictionary using `neatly` formatter"""
-    print(neatly(**x, **kwargs))
+    print(neatly(**x, _width=_width, _indent=_indent, **kwargs))
 
 
 def timestamp(
