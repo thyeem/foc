@@ -96,6 +96,8 @@ __all__ = [
     "concatl",
     "concatmap",
     "concatmapl",
+    "intersperse",
+    "intercalate",
     "lazy",
     "force",
     "mforce",
@@ -114,6 +116,7 @@ __all__ = [
     "HOME",
     "cd",
     "pwd",
+    "ls",
     "normpath",
     "exists",
     "dirname",
@@ -581,6 +584,15 @@ concatmapl = cfd(list)(concatmap)
 concatmapl.__doc__ = "unpacks the result in list after `concatmap`"
 
 
+def intersperse(sep, x):
+    """inserts an element between the elements of the list"""
+    return concatl(zip(repeat(sep), x))[1:]
+
+
+intercalate = cfd(concatl)(intersperse)
+intersperse.__doc__ = "inserts the given list between the lists then concat it"
+
+
 def lazy(f, *args, **kwargs):
     """delays the evaluation of a function(or expression) using generator"""
 
@@ -702,6 +714,10 @@ def pwd():
     return os.getcwd()
 
 
+def ls(path="."):
+    return os.listdir(normpath(path, abs=True))
+
+
 def normpath(path, abs=False):
     return cf_(
         os.path.abspath if abs else id,
@@ -726,7 +742,8 @@ def dirname(*args, prefix=False, abs=False):
         return os.path.commonprefix(args) if prefix else os.path.commonpath(args)
     else:
         args = [normpath(a, abs=abs) for a in args]
-        return os.path.dirname(*args)
+        d = os.path.dirname(*args)
+        return d if d else "."
 
 
 def basename(path):

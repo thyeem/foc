@@ -352,6 +352,22 @@ def test_combinations():
     ]
 
 
+def test_intersperse():
+    assert (
+        "".join(
+            intersperse("-", words("sofia maria claire")),
+        )
+        == "sofia-maria-claire"
+    )
+
+
+def test_intercalate():
+    assert intercalate(
+        [-55],
+        [[1, 2], [3, 4], [5, 6]],
+    ) == [1, 2, -55, 3, 4, -55, 5, 6]
+
+
 def test_lazy():
     assert not lazy(pow, 2, 10) == 1024
 

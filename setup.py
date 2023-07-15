@@ -1,16 +1,16 @@
 import setuptools
 
 with open("README.md", "r") as f:
-    long_decription = f.read()
+    long_description = f.read()
 
 setuptools.setup(
     name="foc",
-    version="0.1.3",
+    version="0.1.4",
     author="Francis Lim",
     author_email="thyeem@gmail.com",
     description="A collection of python functions for somebody's sanity",
-    long_decription=long_decription,
-    long_decription_content_type="text/markdown",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     install_requires=[],
     url="https://github.com/thyeem/foc",
     classifiers=[

@@ -9,3 +9,7 @@
 - Added symbolic operators (the same notations as the python standard library)
 - Improved neatly formatter
 - Added a few of basic functions
+
+# 0.1.4
+- Added `intersperse` and `intercalate`
+- Some modifications on functions related to path
