@@ -109,7 +109,7 @@ __all__ = [
     "fread",
     "fwrite",
     "split_at",
-    "chunk_of",
+    "chunks_of",
     "capture",
     "captures",
     "error",
@@ -117,6 +117,7 @@ __all__ = [
     "cd",
     "pwd",
     "ls",
+    "grep",
     "normpath",
     "exists",
     "dirname",
@@ -676,10 +677,10 @@ def fwrite(f, *args):
 def split_at(ix, x):
     """split iterables at the given splitting-indices"""
     s = flatl(0, ix, None)
-    return [[*it.islice(x, begin, end)] for begin, end in zip(s, s[1:])]
+    return ([*it.islice(x, begin, end)] for begin, end in zip(s, s[1:]))
 
 
-def chunk_of(n, x, fill=None):
+def chunks_of(n, x, fill=None):
     """split interables into the given `n-length` pieces"""
     return it.zip_longest(*(iter(x),) * n, fillvalue=fill)
 
@@ -714,8 +715,14 @@ def pwd():
     return os.getcwd()
 
 
-def ls(path="."):
-    return os.listdir(normpath(path, abs=True))
+def ls(d=".", path=False, abs=False):
+    d = normpath(d, abs=abs)
+    return [f"{d}/{f}" for f in os.listdir(d)] if path else os.listdir(d)
+
+
+@safe
+def grep(regex):
+    return vl_(f_(re.search, regex))
 
 
 def normpath(path, abs=False):

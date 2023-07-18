@@ -401,11 +401,11 @@ def test_captures():
 
 
 def test_split_at():
-    assert split_at((3, 5), range(1, 11)) == [[1, 2, 3], [4, 5], [6, 7, 8, 9, 10]]
+    assert list(split_at((3, 5), range(1, 11))) == [[1, 2, 3], [4, 5], [6, 7, 8, 9, 10]]
 
 
-def test_chunk_of():
-    assert list(chunk_of(3, range(1, 11))) == [
+def test_chunks_of():
+    assert list(chunks_of(3, range(1, 11))) == [
         (1, 2, 3),
         (4, 5, 6),
         (7, 8, 9),

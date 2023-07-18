@@ -13,3 +13,7 @@
 # 0.1.4
 - Added `intersperse` and `intercalate`
 - Some modifications on functions related to path
+
+# 0.1.5
+- Added `grep`
+- Fixed `ls` and `split_at`
