@@ -5,7 +5,7 @@ import re
 import threading
 from collections import deque
 from datetime import datetime, timedelta
-from functools import cache, partial, reduce, wraps
+from functools import partial, reduce, wraps
 from inspect import signature
 from itertools import count, cycle, dropwhile, takewhile, tee
 from shutil import rmtree
@@ -128,6 +128,7 @@ __all__ = [
     "int_to_bytes",
     "random_bytes",
     "random_int",
+    "shuffle",
     "dmap",
     "fn_args",
     "singleton",
@@ -456,7 +457,6 @@ is_ = op.is_
 is_not_ = op.is_not
 
 
-@cache
 def bop(f):
     """symbolic binary operators"""
     return {
@@ -614,24 +614,20 @@ mforce = ml_(force)
 mforce.__doc__ = "map 'force' over iterables of delayed-evaluation"
 
 
-def _is_ns_iter(x):
-    """check if the given is a non-string-like iterable"""
-    return all(
-        (
-            hasattr(x, "__iter__"),
-            not isinstance(x, str),
-            not isinstance(x, bytes),
-        )
-    )
-
-
 def flat(*args):
     """flatten all kinds of iterables (except for string-like object)"""
 
+    def ns_iter(x):
+        return (
+            hasattr(x, "__iter__")
+            and not isinstance(x, str)
+            and not isinstance(x, bytes)
+        )
+
     def go(xss):
-        if _is_ns_iter(xss):
+        if ns_iter(xss):
             for xs in xss:
-                yield from go([*xs] if _is_ns_iter(xs) else xs)
+                yield from go([*xs] if ns_iter(xs) else xs)
         else:
             yield xss
 
@@ -782,20 +778,41 @@ def int_to_bytes(x, size=None, byteorder="big"):
 
 
 def random_bytes(n):
+    """generate cryptographically secure random bytes"""
     return os.urandom(n)
 
 
 def random_int(*args):
-    def rint(n):
-        return bytes_to_int(random_bytes((n.bit_length() + 7) // 8)) % n
+    """generate random integer cryptographically secure and fast.
+    return random integer(s) in range of [low, high)"""
+
+    def rint(high, low=0):
+        assert high > low, "Error, low >= high"
+        x = high - low
+        return low + (
+            bytes_to_int(
+                random_bytes((x.bit_length() + 7) // 8),
+            )
+            % x
+        )
 
     if not args:
-        return rint(2 << 256 - 1)
-    elif len(args) == 1:
-        return rint(fst(args))
-    else:  # [low, high)]
-        low, high, *_ = args
-        return low + rint(high - low)
+        return rint(1 << 256)
+    elif len(args) < 3:
+        return rint(*args[::-1])
+    elif len(args) == 3:
+        return [rint(*args[:2][::-1]) for _ in range(args[-1])]
+    else:
+        error(f"Error, wrong number of args: {len(args)}", e=SystemExit)
+
+
+def shuffle(x):
+    """Fisher-Yates shuffle in a cryptographically secure way"""
+    x = list(x)
+    for i in range(len(x) - 1, 0, -1):
+        j = random_int(0, i)
+        x[i], x[j] = x[j], x[i]
+    return x
 
 
 class dmap(dict):
@@ -820,7 +837,6 @@ class dmap(dict):
         return self
 
 
-@cache
 def fn_args(f):
     """get positional arguments of a given function"""
     return [
@@ -929,7 +945,6 @@ def timestamp(
     return to_str and f"{datetime.fromtimestamp(t).isoformat()[:26]}Z" or t
 
 
-@cache
 def __sig__():
     def sig(o):
         try:

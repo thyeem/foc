@@ -17,3 +17,8 @@
 # 0.1.5
 - Added `grep`
 - Fixed `ls` and `split_at`
+
+# 0.1.6
+- Remove the unnecessary caching (possible memory leak)
+- Added `shuffle`
+- Improved `random_int`
