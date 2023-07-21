@@ -22,3 +22,6 @@
 - Remove the unnecessary caching (possible memory leak)
 - Added `shuffle`
 - Improved `random_int`
+
+# 0.1.7
+- Added `const`, `until`, and `apply`

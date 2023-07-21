@@ -16,6 +16,7 @@ __all__ = [
     "deque",
     "safe",
     "id",
+    "const",
     "fst",
     "snd",
     "nth",
@@ -79,7 +80,9 @@ __all__ = [
     "bimap",
     "first",
     "second",
+    "until",
     "iterate",
+    "apply",
     "foldl",
     "foldl1",
     "foldr",
@@ -152,6 +155,10 @@ def safe(f):
 
 def id(x):
     return x
+
+
+def const(x):
+    return lambda _: x
 
 
 @safe
@@ -501,10 +508,20 @@ def second(g, x):
     return fst(x), g(snd(x))
 
 
+def until(p, f, x):
+    while not p(x):
+        x = f(x)
+    return x
+
+
 def iterate(f, x):
     while True:
         yield x
         x = f(x)
+
+
+def apply(f, *args):
+    return f(*args)
 
 
 def foldl(f, initial, xs):
