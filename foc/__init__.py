@@ -131,6 +131,7 @@ __all__ = [
     "int_to_bytes",
     "random_bytes",
     "random_int",
+    "choice",
     "shuffle",
     "dmap",
     "fn_args",
@@ -800,7 +801,7 @@ def random_bytes(n):
 
 
 def random_int(*args):
-    """generate random integer cryptographically secure and fast.
+    """generate random integer cryptographically secure and faster than numpy.
     return random integer(s) in range of [low, high)"""
 
     def rint(high, low=0):
@@ -830,6 +831,24 @@ def shuffle(x):
         j = random_int(0, i)
         x[i], x[j] = x[j], x[i]
     return x
+
+
+def choice(x, size=None, replace=False):
+    """Generate a sample with/without replacement from a given iterable"""
+    x = list(x)
+    if size is None:
+        return x[random_int(len(x))]
+    else:
+        size = int(len(x) * size) if 0 < size < 1 else size
+        replace = True if len(x) < size else replace
+        return [
+            x[i]
+            for i in (
+                random_int(0, len(x), size)
+                if replace
+                else shuffle(range(len(x)))[:size]
+            )
+        ]
 
 
 class dmap(dict):

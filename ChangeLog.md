@@ -25,3 +25,6 @@
 
 # 0.1.7
 - Added `const`, `until`, and `apply`
+
+# 0.1.8
+- Added `choice`
