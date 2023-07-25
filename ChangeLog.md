@@ -28,3 +28,8 @@
 
 # 0.1.8
 - Added `choice`
+
+# 0.1.9
+- Fixed `fread`. Keep whitespaces at the end of lines.
+- Fixed `chunks_of`. Filling values is optional.
+- Fixed `lines`. No splits on trailing newlines.

@@ -238,7 +238,7 @@ def unwords(x):
 
 
 def lines(x):
-    return x.split("\n")
+    return x.splitlines()
 
 
 def unlines(x):
@@ -673,7 +673,7 @@ def fread(*args):
     for x in flat(args):
         if isinstance(x, bytes):
             if exists(f(x), "f"):
-                yield open(f(x), "r").read().splitlines()
+                yield open(f(x), "r").readlines()
             else:
                 error(f"Error, not found file: {f(x)}")
         else:
@@ -694,9 +694,12 @@ def split_at(ix, x):
     return ([*it.islice(x, begin, end)] for begin, end in zip(s, s[1:]))
 
 
-def chunks_of(n, x, fill=None):
+def chunks_of(n, x, fillvalue=None, fill=True):
+    if not fill:
+        x = list(x)
+        x = x[: len(x) // n * n]
     """split interables into the given `n-length` pieces"""
-    return it.zip_longest(*(iter(x),) * n, fillvalue=fill)
+    return it.zip_longest(*(iter(x),) * n, fillvalue=fillvalue)
 
 
 def capture(p, string):
