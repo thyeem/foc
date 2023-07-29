@@ -40,3 +40,6 @@
 - Added `ilen`
 - Fixed `apply`, `_in`, and `neatly`
 - Renamed `_not`, `_and`, `_or` and `_in`
+
+# 0.1.11
+- Hotfix

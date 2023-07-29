@@ -845,7 +845,7 @@ def choice(x, size=None, replace=False):
             for i in (
                 random_int(0, len(x), size)
                 if replace
-                else shuffle(range(len(x)))[:size]
+                else shuffle(rangel(len(x)))[:size]
             )
         ]
 
