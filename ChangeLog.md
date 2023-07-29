@@ -33,3 +33,10 @@
 - Fixed `fread`. Keep whitespaces at the end of lines.
 - Fixed `chunks_of`. Filling values is optional.
 - Fixed `lines`. No splits on trailing newlines.
+
+# 0.1.10
+- Removed unnecessary `lazy` and `tup`
+- Fixed `shuffle` and `choice` not to waste memory
+- Added `ilen`
+- Fixed `apply`, `_in`, and `neatly`
+- Renamed `_not`, `_and`, `_or` and `_in`

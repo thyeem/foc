@@ -360,33 +360,38 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 ['S', 'O', 'F', 'I', 'A', 'M', 'A', 'R', 'I', 'A']
 ```
 
-#### Lazy Evaluation: `lazy` and `force`
-`lazy` delays the evaluation of a function(or expression) using `python`s generator. `force` forces the delayed-expression to be fully evaluated.
+#### Lazy Evaluation: `f_`, `ff_` and `force`
+To delays the evaluation of a function(or expression), use partial application using `f_` (_left-associative_) and `ff_` (_right-associative_).
+
+If you complete or fill `f_` or `ff_` with a function name and its arguments, and leave it unevaluated (not called), that is a _delayed expression_.
+
+`force` forces the delayed-expression to be fully evaluated when needed.
 
 ```python
 >>> %timeit pow(2, 12345)    # 2 ** 12345
 24 µs ± 33.5 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
 
 # See the evaluation was delayed
->>> %timeit lazy(pow, 2, 12345)
+>>> %timeit f_(pow, 2, 12345)
 1.46 µs ± 14.9 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each
 
->>> r = lazy(pow, 2, 12345)
+>>> r = f_(pow, 2, 12345)
 >>> r()       # fully evaluate it!
 
 # or
 >>> force(r)  # like Haskell's "force", x `seq` x.
 
->>> replicate(5, random_int(1, 10))    # wrong. not wanted.
+>>> replicate(5, random_int(1, 10))    # wrong! this result is definitely not what we want.
 [7, 7, 7, 7, 7]         # evaluation is not delayed. duplication of the same elements.
 
->>> randos = replicate(5, lazy(random_int, 1, 10))    # [ delayed_fn, delayed_fn .., ]
+# Just use "f_(random_int, 1, 10)" instead of "random_int(1, 1)"
+>>> randos = replicate(5, f_(random_int, 1, 10))    # [ delayed_fn, delayed_fn .., ]
 
->>> ml_(force)(randos)  # map 'force' over list of delayed functions
+>>> mforce(randos)      # map 'force' over list of delayed functions
+[7, 3, 9, 1, 3]         # exactly what we wanted
+
+>>> ml_(force)(randos)  # mforce == ml_(force)(randos)
 [6, 2, 5, 1, 9]
-
->>> mforce(randos)      # the same as ml_(force)(randos)
-[7, 3, 9, 1, 3]         # expected result
 ```
 
 #### Normalize containers: `flat`
@@ -436,9 +441,9 @@ deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 ```python
 >>> d = dmap(name="yunchan lim", age=19, profession="pianist")
 >>> nprint(d)    # neatly print 'dict' or 'dict-items'
-        name  |  yunchan lim
-         age  |  19
-  profession  |  pianist
+      name  |  yunchan lim
+       age  |  19
+profession  |  pianist
 
 # just put the value in the desired key path
 >>> d.cliburn.semifinal.mozart = "piano concerto no.22"
@@ -446,13 +451,13 @@ deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 >>> d.cliburn.final.beethoven = "piano concerto no.3"
 >>> d.cliburn.final.rachmaninoff = "piano concerto no.3"
 >>> nprint(d)
-        name  |  yunchan lim
-         age  |  19
-  profession  |  pianist
-     cliburn  |   semifinal  |   mozart  |  piano concerto no.22
-              |              |    liszt  |  12 transcendental etudes
-              |       final  |      beethoven  |  piano concerto no.3
-              |              |   rachmaninoff  |  piano concerto no.3
+      name  |  yunchan lim
+       age  |  19
+profession  |  pianist
+   cliburn  |  semifinal  |        mozart  |  piano concerto no.22
+            |             |         liszt  |  12 transcendental etudes
+            |      final  |     beethoven  |  piano concerto no.3
+            |             |  rachmaninoff  |  piano concerto no.3
 
 >>> del d.cliburn
 >>> d.profession = "one-in-a-million talent"

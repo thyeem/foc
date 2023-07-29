@@ -7,7 +7,9 @@ from collections import deque
 from datetime import datetime, timedelta
 from functools import partial, reduce, wraps
 from inspect import signature
-from itertools import count, cycle, dropwhile, takewhile, tee
+from itertools import accumulate, count, cycle, dropwhile, islice
+from itertools import product as cprod
+from itertools import takewhile, tee
 from shutil import rmtree
 from textwrap import fill
 
@@ -24,8 +26,9 @@ __all__ = [
     "drop",
     "head",
     "tail",
-    "last",
     "init",
+    "last",
+    "ilen",
     "pred",
     "succ",
     "odd",
@@ -41,6 +44,7 @@ __all__ = [
     "cycle",
     "count",
     "tee",
+    "islice",
     "product",
     "flip",
     "f_",
@@ -69,13 +73,12 @@ __all__ = [
     "takewhilel",
     "dropwhile",
     "dropwhilel",
-    "tup",
-    "not_",
-    "and_",
-    "or_",
-    "in_",
-    "is_",
-    "is_not_",
+    "_not",
+    "_and",
+    "_or",
+    "_in",
+    "_is",
+    "_is_not",
     "bop",
     "bimap",
     "first",
@@ -101,7 +104,6 @@ __all__ = [
     "concatmapl",
     "intersperse",
     "intercalate",
-    "lazy",
     "force",
     "mforce",
     "flat",
@@ -173,15 +175,15 @@ def snd(x):
 
 
 def nth(n, x):
-    return x[n - 1] if hasattr(x, "__getitem__") else next(it.islice(x, n - 1, None))
+    return x[n - 1] if hasattr(x, "__getitem__") else next(islice(x, n - 1, None))
 
 
 def take(n, x):
-    return [*it.islice(x, n)]
+    return [*islice(x, n)]
 
 
 def drop(n, x):
-    return it.islice(x, n, None)
+    return islice(x, n, None)
 
 
 @safe
@@ -195,17 +197,23 @@ def tail(x):
 
 
 @safe
-def last(x):
-    return deque(x, maxlen=1)[0]
-
-
-@safe
 def init(x):
     it = iter(x)
     o = next(it)
     for i in it:
         yield o
         o = i
+
+
+@safe
+def last(x):
+    return deque(x, maxlen=1)[0]
+
+
+def ilen(x):
+    c = count()
+    deque(zip(x, c), maxlen=0)
+    return next(c)
 
 
 def pred(x):
@@ -250,7 +258,7 @@ def elem(x, xs):
 
 
 def repeat(x):
-    return (x for _ in it.count())
+    return (x for _ in count())
 
 
 def replicate(n, x):
@@ -274,7 +282,8 @@ def flip(f):
 
 def f_(f, *args, **kwargs):
     """build left-associative partial application,
-    where the given function's arguments partially evaluation from the left"""
+    where the given function's arguments partially evaluation from the left
+    """
 
     return partial(bop(f), *args, **kwargs)
 
@@ -300,7 +309,8 @@ def curry(f, n=None):
     The currying result is simply a nested unary function.
 
     This function takes positional arguments only when currying.
-    Use partial application `f_` before currying if you need to change kwargs"""
+    Use partial application `f_` before currying if you need to change kwargs
+    """
     f = bop(f)
     n = n if n else len(fn_args(f))
 
@@ -376,13 +386,15 @@ def mml_(f):
 
 def v_(f):
     """builds partial application of `filter` (left-associative)
-    f: predicate or filter funtion"""
+    f: predicate or filter funtion
+    """
     return f_(filter, f)
 
 
 def vv_(xs):
     """builds partial application of `filter` (right-associative)
-    xs: iterable"""
+    xs: iterable
+    """
     return ff_(filter, xs)
 
 
@@ -433,36 +445,31 @@ dropwhilel = cfd(list)(dropwhile)
 dropwhilel.__doc__ = "unpacks the result in list after `dropwhile`"
 
 
-def tup(*args):
-    """construct tuple with given arguments: this mirros `dict(**kwargs)`"""
-    return args
-
-
-def not_(x):
+def _not(x):
     """`not` as a function"""
     return not x
 
 
-def and_(a, b):
+def _and(a, b):
     """`and` as a function"""
     return a and b
 
 
-def or_(a, b):
+def _or(a, b):
     """`and` as a function"""
     return a or b
 
 
 # `in` as a function
-in_ = op.contains
+_in = flip(op.contains)
 
 
 # `is` as a function
-is_ = op.is_
+_is = op.is_
 
 
 # `is not` as a function
-is_not_ = op.is_not
+_is_not = op.is_not
 
 
 def bop(f):
@@ -522,7 +529,7 @@ def iterate(f, x):
 
 
 def apply(f, *args):
-    return f(*args)
+    return bop(f)(*args)
 
 
 def foldl(f, initial, xs):
@@ -549,37 +556,38 @@ def foldr1(f, xs):
 def scanl(f, initial, xs):
     """returns a list of successive reduced values from the left
     The same as `scanl` in Haskell"""
-    return it.accumulate(xs, bop(f), initial=initial)
+    return accumulate(xs, bop(f), initial=initial)
 
 
 @cfd(list)
 def scanl1(f, xs):
     """`scanl` without starting value. The same as 'scanl1' in Haskell"""
-    return it.accumulate(xs, bop(f))
+    return accumulate(xs, bop(f))
 
 
 @cfd(reverse)
 def scanr(f, initial, xs):
     """returns a list of successive reduced values from the right
-    The same as `scanr` in Haskell"""
-    return it.accumulate(xs[::-1], flip(bop(f)), initial=initial)
+    The same as `scanr` in Haskell
+    """
+    return accumulate(xs[::-1], flip(bop(f)), initial=initial)
 
 
 @cfd(reverse)
 def scanr1(f, xs):
     """`scanr` without starting value. The same as 'scanr1' in Haskell"""
-    return it.accumulate(xs[::-1], flip(bop(f)))
+    return accumulate(xs[::-1], flip(bop(f)))
 
 
 def permutation(x, r, rep=False):
-    return it.product(x, repeat=r) if rep else it.permutations(x, r)
+    return cprod(x, repeat=r) if rep else it.permutations(x, r)
 
 
 def combination(x, r, rep=False):
     return it.combinations_with_replacement(x, r) if rep else it.combinations(x, r)
 
 
-cartprod = ff_(it.product, repeat=1)
+cartprod = ff_(cprod, repeat=1)
 cartprod.__doc__ = "returns Cartesian product"
 
 
@@ -610,17 +618,6 @@ def intersperse(sep, x):
 
 intercalate = cfd(concatl)(intersperse)
 intersperse.__doc__ = "inserts the given list between the lists then concat it"
-
-
-def lazy(f, *args, **kwargs):
-    """delays the evaluation of a function(or expression) using generator"""
-
-    f = bop(f)
-
-    def g(*a, **k):
-        yield f(*a, **k) if callable(f) else f
-
-    return cfd(next)(f_(g, *args, **kwargs))
 
 
 def force(x, *args, **kwargs):
@@ -804,8 +801,9 @@ def random_bytes(n):
 
 
 def random_int(*args):
-    """generate random integer cryptographically secure and faster than numpy.
-    return random integer(s) in range of [low, high)"""
+    """generate random integer cryptographically secure and faster than numpy's.
+    return random integer(s) in range of [low, high)
+    """
 
     def rint(high, low=0):
         assert high > low, "Error, low >= high"
@@ -829,7 +827,6 @@ def random_int(*args):
 
 def shuffle(x):
     """Fisher-Yates shuffle in a cryptographically secure way"""
-    x = list(x)
     for i in range(len(x) - 1, 0, -1):
         j = random_int(0, i)
         x[i], x[j] = x[j], x[i]
@@ -838,7 +835,6 @@ def shuffle(x):
 
 def choice(x, size=None, replace=False):
     """Generate a sample with/without replacement from a given iterable"""
-    x = list(x)
     if size is None:
         return x[random_int(len(x))]
     else:
@@ -919,23 +915,31 @@ def polling(f, sec, args=None, kwargs=None):
     return t
 
 
-def neatly(x={}, _width=100, _indent=None, **kwargs):
+def neatly(_x={}, _width=500, _cols=None, **kwargs):
     """generate justified string of 'dict' or 'dict-items'"""
-    d = {**x, **kwargs}
-    _indent = _indent or max(map(len, d.keys())) + 1
-    if _width < _indent:
-        error(f"Error, neatly print with invalid width: {_width}")
 
-    def go(x):
+    d = {**_x, **kwargs}
+    _cols = _cols or max(map(len, d.keys()))
+
+    if _width < _cols:
+        error(f"Error, cannot print with not enough width: {_width}")
+
+    def go(x, c, w):
         if isinstance(x, dict):
-            return neatly(**x, _width=_width - _indent - 6)
+            return neatly(**x, _cols=c, _width=w - c - 6)
         else:
             return x
 
-    def lf(k, v):
+    def cols(d):
+        o = [len(x) for c in d.values() if isinstance(c, dict) for x in c]
+        return max(o) if o else 0
+
+    def linefeeds(k, v):
         return [
             (" ", v) if i else (k, v)
-            for i, v in enumerate(filter(cf_(not_, null), lines(f"{v}")))
+            for i, v in enumerate(
+                filter(cf_(_not, null, str.strip), lines(f"{v}")),
+            )
         ]
 
     return "\n".join(
@@ -944,17 +948,17 @@ def neatly(x={}, _width=100, _indent=None, **kwargs):
             width=_width,
             break_on_hyphens=False,
             drop_whitespace=False,
-            initial_indent=f"{k.replace('_','-'):>{_indent}}  |  ",
-            subsequent_indent=f"{' ':>{_indent}}  |  ",
+            initial_indent=f"{k.replace('_','-'):>{_cols}}  |  ",
+            subsequent_indent=f"{' ':>{_cols}}  |  ",
         )
         for k, v in d.items()
-        for k, v in lf(k, go(v))
+        for k, v in linefeeds(k, go(v, cols(d), _width))
     )
 
 
-def nprint(x={}, _width=100, _indent=None, **kwargs):
+def nprint(x={}, _width=500, _cols=None, **kwargs):
     """neatly print dictionary using `neatly` formatter"""
-    print(neatly(**x, _width=_width, _indent=_indent, **kwargs))
+    print(neatly(**x, _width=_width, _cols=_cols, **kwargs))
 
 
 def timestamp(
@@ -998,4 +1002,4 @@ def flist(to_dict=False):
     if to_dict:
         return __sig__()
     else:
-        nprint(__sig__(), _indent=14)
+        nprint(__sig__(), _cols=14)

@@ -24,9 +24,9 @@ def test_safe():
     assert f() is None
 
 
-def test_not_():
-    assert not_(False)
-    assert not (not_(True))
+def test_not():
+    assert _not(False)
+    assert not (_not(True))
 
 
 def test_id():
@@ -369,11 +369,11 @@ def test_intercalate():
 
 
 def test_lazy():
-    assert not lazy(pow, 2, 10) == 1024
+    assert not f_(pow, 2, 10) == 1024
 
 
 def test_force():
-    assert force(lazy(pow, 2, 10)) == 1024
+    assert force(f_(pow, 2, 10)) == 1024
 
 
 def test_flatl(d):
