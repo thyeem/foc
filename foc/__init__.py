@@ -2,7 +2,9 @@ import itertools as it
 import operator as op
 import os
 import re
+import sys
 import threading
+import zipfile
 from collections import deque
 from datetime import datetime, timedelta
 from functools import partial, reduce, wraps
@@ -111,8 +113,8 @@ __all__ = [
     "flatt",
     "flatd",
     "flats",
-    "fread",
-    "fwrite",
+    "reads",
+    "writes",
     "split_at",
     "chunks_of",
     "capture",
@@ -662,27 +664,26 @@ flats = cfd(set)(flat)
 flats.__doc__ = "flatten iterables into set"
 
 
-@cfd(flat)
-def fread(*args):
-    """flat-read: read iterables from objects or files then flatten them"""
-    f = cf_(normpath, bytes.decode)
-
-    for x in flat(args):
-        if isinstance(x, bytes):
-            if exists(f(x), "f"):
-                yield open(f(x), "r").readlines()
-            else:
-                error(f"Error, not found file: {f(x)}")
-        else:
-            yield x
+def reads(f=None, mode="r", zipf=False):
+    """get ready to read stream from a file or stdin, then returns the handle"""
+    return (
+        sys.stdin
+        if f is None
+        else zipfile.ZipFile(normpath(f), mode)
+        if zipf
+        else open(normpath(f), mode)
+    )
 
 
-def fwrite(f, *args):
-    """flat-write: get iterables flattened then write it to a file"""
-    with open(f, "w") as fh:
-        for line in flat(args):
-            fh.write(f"{line}\n")
-    return f
+def writes(f=None, mode="w", zipf=False):
+    """get ready to write stream to a file or stout, then returns the handle"""
+    return (
+        sys.stdout
+        if f is None
+        else zipfile.ZipFile(normpath(f), mode)
+        if zipf
+        else open(normpath(f), mode)
+    )
 
 
 def split_at(ix, x):
@@ -729,9 +730,17 @@ def pwd():
     return os.getcwd()
 
 
-def ls(d=".", path=False, abs=False):
-    d = normpath(d, abs=abs)
-    return [f"{d}/{f}" for f in os.listdir(d)] if path else os.listdir(d)
+def ls(d=".", r=False, rg=None):
+    d = normpath(d, abs=False)
+    fs = os.listdir(d)
+    finish = sort if rg is None else cf_(sort, grep(rg))
+    if not r:
+        return finish([f"{d}/{f}" for f in fs])
+    else:
+        return cf_(finish, flat)(
+            (ls(f, r=r, rg=rg)) if exists(f, "d") else f
+            for f in [f"{d}/{f}" for f in fs]
+        )
 
 
 @safe

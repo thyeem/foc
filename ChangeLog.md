@@ -43,3 +43,8 @@
 
 # 0.1.11
 - Hotfix
+
+# 0.1.12
+- Improved `ls` by adding recursive-search and regex filter
+- Added `reads` and `writes`
+- Removed `fread` and `fwrite`

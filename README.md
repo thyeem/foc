@@ -419,20 +419,55 @@ deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 [1, 2, 3, 4, 5, 'sofia', 'maria']
 ```
 
-`fread` and `fwrite` are used to easily read and write _flattened_ data using `flat`.
+#### Handy File Tools: `ls` and `grep`
+
+`Path` from `pathlib` and `glob` are great and useful.
+
+But, personally I feel like it's still complicated and I'm not likely to use it. Using `os.path.expanduser("~")` is very painful every time and not intuitive at all.
+
+They never understand `~/francis/foc` and are not tolerable `foc//__init__` (typo `/`).
+
+I needed more handy one that controls everything with only `regex` patterns.
+
+There are several fundamental functions prepared as well such as: `HOME`, `cd`, `pwd`, `mkdir`, `rmdir`, `exists`, `dirname`, and `basename` ..
 
 ```python
->>> fwrite("family.dat", ["maria",[[[["sofia"]]],[["claire"]],"francis"]])
-'family.dat'
+# couldn't be simpler!
+>>> ls(".git")
+['.git/COMMIT_EDITMSG',
+ '.git/FETCH_HEAD',
+ '.git/HEAD',
+ ...
 
-# 'bytes' indicates 'filename'
->>> [* fread(b"family.dat", [[1,{2}],[[[3],(4,5)]], (x for x in range(6,11))]) ]
-['maria', 'sofia', 'claire', 'francis', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+# list up recursively, like "find .git"
+>>> ls(".git", r=True)
+...
+ '.git/hooks/update.sample',
+ '.git/index',
+ '.git/info/exclude',
+ '.git/logs/HEAD',
+ ...
 
-# with not-exists files
->>> [* fread(b"fruits", ...[[1,{2}],[[[3],(4,5)]], (x for x in range(6,11))]) ]
-# ...
-# Exception: Error, not found file: fruits
+# search recursivley and matching a pattern
+>>> ls(".", r=True, rg=".py")
+...
+ '.pytest_cache/v/cache/stepwise',
+ 'foc/__init__.py',
+ 'foc/__pycache__/__init__.cpython-310.pyc',
+ 'tests/__init__.py',
+ ...
+
+# regex patterns comes in
+>>> ls(".", r=True, rg=".py$")
+['./setup.py', 'foc/__init__.py', 'tests/__init__.py', 'tests/test_foc.py']
+
+# that's it!
+>>> ls(".", r=True, rg="^(foc).*py$")
+['foc/__init__.py']
+
+# 'grep' builds filter with a regex patters
+>>> grep(r"^(foc).*py$")(ls(".", r=True))
+['foc/__init__.py']
 ```
 
 #### Dot-accessible dictionary: `dmap`
