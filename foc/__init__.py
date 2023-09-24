@@ -54,6 +54,8 @@ __all__ = [
     "curry",
     "c_",
     "cc_",
+    "uncurry",
+    "u_",
     "cf_",
     "cfd",
     "m_",
@@ -106,6 +108,7 @@ __all__ = [
     "concatmapl",
     "intersperse",
     "intercalate",
+    "lazy",
     "force",
     "mforce",
     "flat",
@@ -259,12 +262,16 @@ def elem(x, xs):
     return x in xs
 
 
-def repeat(x):
-    return (x for _ in count())
+def repeat(x, nf=True):
+    """create an infinite list with x value of every element
+    if nf (NF, Normal Form) is set, callable objects will be evaluated.
+    """
+    return (x() if nf and callable(x) else x for _ in count())
 
 
-def replicate(n, x):
-    return take(n, repeat(x))
+def replicate(n, x, nf=True):
+    """get a list of length `n` from an infinite list with `x` values"""
+    return take(n, repeat(x, nf=nf))
 
 
 def product(x):
@@ -330,6 +337,24 @@ c_ = curry
 def cc_(f):
     """build curried function that takes arguments from the right"""
     return c_(flip(bop(f)))
+
+
+def uncurry(f):
+    """convert a uncurried normal function to a unary function of a tuple args.
+    This is not exact reverse operation of `curry`. Here `uncurry` simply does:
+    `uncurry :: (a -> b -> c) -> (a, b) -> c`
+    """
+    f = bop(f)
+
+    @wraps(f)
+    def wrapper(x):
+        return f(*x)
+
+    return wrapper
+
+
+# for decreasing verbosity
+u_ = uncurry
 
 
 def cf_(*fs, rep=None):
@@ -530,8 +555,8 @@ def iterate(f, x):
         x = f(x)
 
 
-def apply(f, *args):
-    return bop(f)(*args)
+def apply(f, *args, **kwargs):
+    return bop(f)(*args, **kwargs)
 
 
 def foldl(f, initial, xs):
@@ -620,6 +645,9 @@ def intersperse(sep, x):
 
 intercalate = cfd(concatl)(intersperse)
 intersperse.__doc__ = "inserts the given list between the lists then concat it"
+
+# easy-to-use alias for lazy operation
+lazy = f_
 
 
 def force(x, *args, **kwargs):
@@ -730,15 +758,15 @@ def pwd():
     return os.getcwd()
 
 
-def ls(d=".", r=False, rg=None):
+def ls(d=".", r=False, grep=None):
     d = normpath(d, abs=False)
     fs = os.listdir(d)
-    finish = sort if rg is None else cf_(sort, grep(rg))
+    finish = sort if grep is None else cf_(sort, globals()["grep"](grep))
     if not r:
         return finish([f"{d}/{f}" for f in fs])
     else:
         return cf_(finish, flat)(
-            (ls(f, r=r, rg=rg)) if exists(f, "d") else f
+            (ls(f, r=r, grep=grep)) if exists(f, "d") else f
             for f in [f"{d}/{f}" for f in fs]
         )
 
@@ -809,29 +837,28 @@ def random_bytes(n):
     return os.urandom(n)
 
 
-def random_int(*args):
+def random_int(x=None, high=None, size=None):
     """generate random integer cryptographically secure and faster than numpy's.
     return random integer(s) in range of [low, high)
     """
 
     def rint(high, low=0):
-        assert high > low, "Error, low >= high"
+        if high is None or low is None:
+            error(f"Error, given no numbers: low={low}, high={high}", e=SystemExit)
+        if low >= high:
+            error(f"Error, low({low}) must be less than high({high})", e=SystemExit)
         x = high - low
-        return low + (
-            bytes_to_int(
-                random_bytes((x.bit_length() + 7) // 8),
-            )
-            % x
-        )
+        return low + (bytes_to_int(random_bytes((x.bit_length() + 7) // 8)) % x)
 
-    if not args:
-        return rint(1 << 256)
-    elif len(args) < 3:
-        return rint(*args[::-1])
-    elif len(args) == 3:
-        return [rint(*args[:2][::-1]) for _ in range(args[-1])]
-    else:
-        error(f"Error, wrong number of args: {len(args)}", e=SystemExit)
+    return (
+        [rint(high, x) for _ in range(size)]  # #args == 3
+        if size is not None
+        else rint(high, x)  # #args == 2
+        if high is not None
+        else rint(x)  # #args == 1
+        if x is not None
+        else rint(1 << 256)  # #args == 0
+    )
 
 
 def shuffle(x):

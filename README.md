@@ -8,13 +8,13 @@
 Functions from the `Python` standard library are great. But some notations are a bit painful and confusing for personal use, so I created this _odd collection of functions_.
 
 
-### Tl;dr
+## Tl;dr
 
 - `foc` provides a collection of _higher-order functions_ and some (_pure_) helpful functions
 - `foc` respects the `Python` standard library. _Never reinvented the wheel_.
 - _Take a look at the examples below._
 
-### Use
+## Use
 ```bash
 # install
 $ pip install -U foc
@@ -25,7 +25,7 @@ $ pip install -U foc
 
 > To list all available functions, call `flist()`.
 
-### Ground rules
+## Ground rules
 - Followed `Haskell`-like function names and arguments order
 - Considered using generators first if possible. (_lazy-evaluation_)
 > `map`, `filter`, `zip`, `range`, `flat` ...
@@ -38,7 +38,7 @@ $ pip install -U foc
 - No dependencies except for the `Python` standard library
 - No unnessary wrapping objects.
 
-### Examples
+## Examples
 __Note__: `foc`'s functions are valid for any _iterable_ such as `list`, `tuple`, `deque`, `set`, `str`, ...
 ```python
 >>> id("francis")
@@ -117,7 +117,7 @@ True
 [2, 5, 8]
 ```
 
-#### Build partial application: `f_` and `ff_`
+### Build partial application: `f_` and `ff_`
 `f_` takes arguments _from the left_ (left-associative) while `ff_` takes them _from the right_ (right-associative).
 
 > When using `ff_`, passing arguments in reverse order for a long-args function is painful.
@@ -155,7 +155,7 @@ True
 4-3-2-1                                       # print_args(4, 3, 2, 1)
 ```
 
-#### Build curried functions: `c_` and `cc_`
+### Build curried functions: `c_` and `cc_`
 When currying a given function, `c_` takes arguments _from the left_ while `cc_` takes them _from the right_.
 > _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
 
@@ -182,7 +182,7 @@ When currying a given function, `c_` takes arguments _from the left_ while `cc_`
 4-3-2-1
 ```
 
-#### Build composition of functions: `cf_` and `cfd`
+### Build composition of functions: `cf_` and `cfd`
 `cf_` (_composition of function_) composes functions using the given list of functions. On the other hand, `cfd` (_composing-function decorator_) decorates a function with the given list of functions.
 
 > _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
@@ -192,8 +192,8 @@ When currying a given function, `c_` takes arguments _from the left_ while `cc_`
 >>> add_by_5 = ff_("+", 5)    # the same as (+5)
 >>> mul_by_7 = ff_("*", 7)    # the same as (*7)
 
->>> cf_(mul_by_7, add_by_5, square)(3)   # (*7) . (+5) . (^2) $ 2
-98                            # mul_by_7(add_by_5(square(2))) = ((3 ^ 2) + 5) * 7
+>>> cf_(mul_by_7, add_by_5, square)(3)   # (*7) . (+5) . (^2) $ 3
+98                            # mul_by_7(add_by_5(square(3))) = ((3 ^ 2) + 5) * 7
 
 >>> @cfd(mul_by_7, add_by_5, square)
 ... def even_num_less_than(x):
@@ -213,7 +213,7 @@ cf_(a, b, c, d, f)(x)    # (a . b . c . d . f)(x) = a(b(c(d(f(x))))) = g(x)
 
 `cfd` is very handy and useful to recreate previously defined functions by composing functions. All you need is to write a basic functions to do fundamental things.
 
-#### Partial application of `map`: `m_` and `mm_`
+### Partial application of `map`: `m_` and `mm_`
 `m_` builds partial application of `map` (left-associative) while `mm_` builds partial application from right to left (right-associative).
 
 > _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
@@ -239,20 +239,24 @@ Unpacking with `list(..)` or `[* .. ]` is sometimes very annoying. So often use 
 ```
 
 ```python
+# The same as [ (lambda x: 8*x)(x) for x in range(1, 6) ]
 >>> list(map(f_("*", 8), range(1, 6)))   # (8*) <$> [1..5]
-[8, 16, 24, 32, 40]                         # [ (lambda x: 8*x)(x) for x in range(1, 6) ]
+[8, 16, 24, 32, 40]
 
+# tha same: shorter using 'mapl'
 >>> mapl(f_("*", 8), range(1, 6))        # (8*) <$> [1..5]
 [8, 16, 24, 32, 40]
 
+# the same: partial application (from left)
 >>> ml_(f_("*", 8))(range(1, 6))         # ((8*) <$>) [1..5]
 [8, 16, 24, 32, 40]
 
+# the same: partial application (from right)
 >>> mml_(range(1, 6))(f_("*", 8))        # (<$> [1..5]) (8*)
 [8, 16, 24, 32, 40]
 ```
 
-#### Partial application of `filter`: `v_` and `vv_`
+### Partial application of `filter`: `v_` and `vv_`
 `v_` builds partial application of `filter` (left-associative) while `vv_` builds partial application from right to left (right-associative).
 
 The same as `map` (mapping functions over iterables) except for filtering iterables using predicate function.
@@ -291,29 +295,29 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 [2, 5, 11, 17, 23, 29, 41, 47]
 ```
 
-#### Other higher-order functions
+### Other higher-order functions
 > To see all available functions, use `flist()` to print to `stdout` or `usage = flist(True)`.
 
 ```python
->>> bimap(f_("+", 3), f_("*", 7), (5, 7))    # bimap (3+) (7*) (5, 7)
-(8, 49)                                            # (3+5, 7*7)
+>>> bimap(f_("+", 3), f_("*", 7), (5, 7))       # bimap (3+) (7*) (5, 7)
+(8, 49)                                         # (3+5, 7*7)
 
 >>> first(f_("+", 3), (5, 7))                   # first (3+) (5, 7)
 (8, 7)                                             # (3+5, 7)
 
 >>> second(f_("*", 7), (5, 7))                  # second (7*) (5, 7)
-(5, 49)                                            # (5, 7*7)
+(5, 49)                                         # (5, 7*7)
 
->>> take(5, iterate(lambda x: x**2, 2))            # [2, 2**2, (2**2)**2, ((2**2)**2)**2, ...]
+>>> take(5, iterate(lambda x: x**2, 2))         # [2, 2**2, (2**2)**2, ((2**2)**2)**2, ...]
 [2, 4, 16, 256, 65536]
 
->>> [* takewhile(even, [2, 4, 6, 1, 3, 5]) ]       # `takewhile` returns a generator
+>>> [* takewhile(even, [2, 4, 6, 1, 3, 5]) ]    # `takewhile` returns a generator
 [2, 4, 6]
 
 >>> takewhilel(even, [2, 4, 6, 1, 3, 5])
 [2, 4, 6]
 
->>> [* dropwhile(even, [2, 4, 6, 1, 3, 5]) ]       # `dropwhile` returns a generator
+>>> [* dropwhile(even, [2, 4, 6, 1, 3, 5]) ]    # `dropwhile` returns a generator
 [1, 3, 5]
 
 >>> dropwhilel(even, [2, 4, 6, 1, 3, 5])
@@ -354,47 +358,86 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 # See also 'concat' that returns a generator
 >>> concatl(["sofia", "maria"])
 ['s', 'o', 'f', 'i', 'a', 'm', 'a', 'r', 'i', 'a']
+# Note that ["sofia", "maria"] = [['s','o','f','i','a'], ['m','a','r','i','a']]
 
 # See also 'concatmap' that returns a generator
->>> concatmapl(str.upper, ["sofia", "maria"])      # concatmapl = cfd(list, concat)(map)
+>>> concatmapl(str.upper, ["sofia", "maria"])   # concatmapl = cfd(list, concat)(map)
 ['S', 'O', 'F', 'I', 'A', 'M', 'A', 'R', 'I', 'A']
 ```
 
-#### Lazy Evaluation: `f_`, `ff_` and `force`
-To delays the evaluation of a function(or expression), use partial application using `f_` (_left-associative_) and `ff_` (_right-associative_).
+### Lazy Evaluation: `lazy` and `force`
+To defers the evaluation of a function(or expression), just use `lazy`.
 
-If you complete or fill `f_` or `ff_` with a function name and its arguments, and leave it unevaluated (not called), that is a _delayed expression_.
+In order to generate a lazy expression, use `lazy(function-name, *args, **kwargs)`
 
-`force` forces the delayed-expression to be fully evaluated when needed.
+`force` forces the deferred-expression to be fully evaluated when needed.
+> it reminds `Haskell`'s `force x = deepseq x x`.
 
 ```python
->>> %timeit pow(2, 12345)    # 2 ** 12345
-24 µs ± 33.5 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+# strictly generate a random integer between [1, 10)
+>>> random_int(1, 10)
 
-# See the evaluation was delayed
->>> %timeit f_(pow, 2, 12345)
-1.46 µs ± 14.9 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each
+# generate a lazy expression for the above
+>>> deferred = lazy(random_int, 1, 10)
 
->>> r = f_(pow, 2, 12345)
->>> r()       # fully evaluate it!
+# evaluate it when it need
+>>> force(deferred)
 
-# or
->>> force(r)  # like Haskell's "force", x `seq` x.
-
->>> replicate(5, random_int(1, 10))    # wrong! this result is definitely not what we want.
-[7, 7, 7, 7, 7]         # evaluation is not delayed. duplication of the same elements.
-
-# Just use "f_(random_int, 1, 10)" instead of "random_int(1, 1)"
->>> randos = replicate(5, f_(random_int, 1, 10))    # [ delayed_fn, delayed_fn .., ]
-
->>> mforce(randos)      # map 'force' over list of delayed functions
-[7, 3, 9, 1, 3]         # exactly what we wanted
-
->>> ml_(force)(randos)  # mforce == ml_(force)(randos)
-[6, 2, 5, 1, 9]
+# the same as 'force(deferred)'
+>>> deferred()
 ```
 
-#### Normalize containers: `flat`
+Are those evaluations with `lazy` really deferred?
+
+```python
+>>> long_list = random_int(1, 100000, 100000)    # a list of one million random integers
+
+>>> %timeit sort(long_list)
+142 ms ± 245 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
+
+# See the evaluation was deferred
+>>> %timeit lazy(sort, long_list)
+1.03 µs ± 2.68 ns per loop (mean ± std. dev. of 7 runs, 1,000,000 loops each
+```
+
+When to use? Let me give an example.
+
+For given a function `random_int(low, high)`, how can we generate a list of random integers?
+
+```python
+[ random_int(1, 10) for _ in range(5) ]    # acutally the same as 'random_int(1, 10, 5)'
+```
+
+It's the simplest way but what about using `replicate`?
+```python
+# generate a list of random integers using 'replicate'
+>>> replicate(5, random_int(1, 10))
+[7, 7, 7, 7, 7]        # ouch, duplication of the first evaluated item.
+```
+Wrong! This result is definitely not what we want. We need to defer the function evaluation till it is _replicated_.
+
+Just use `lazy(random_int, 1, 10)` instead of `random_int(1, 10)`
+
+```python
+# replicate 'deferred expression'
+>>> randos = replicate(5, lazy(random_int, 1, 10))
+
+# evaluate when needed
+>>> mforce(randos)      # mforce = ml_(force), map 'force' over deferred expressions
+[6, 2, 5, 1, 9]         # exactly what we wanted
+```
+
+Here is the simple secret: if you complete `f_` or `ff_` with a function name and its arguments, and leave it unevaluated (not called), they will act as a _deferred expression_.
+
+Not related to `lazy` operation, but you do the same thing with `uncurry`
+
+```python
+# replicate the tuple of arguments (1, 10) and then apply to uncurried function
+>>> ml_(u_(random_int))(replicate(5, (1,10)))    # u_ == uncurry
+[7, 6, 1, 7, 2]
+```
+
+### Normalize containers: `flat`
 `flat` flattens all kinds of iterables except for string-like object, _regardless of the number of arguments_.
 
 ```python
@@ -419,7 +462,7 @@ deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 [1, 2, 3, 4, 5, 'sofia', 'maria']
 ```
 
-#### Handy File Tools: `ls` and `grep`
+### Handy File Tools: `ls` and `grep`
 
 `Path` from `pathlib` and `glob` are great and useful.
 
@@ -449,7 +492,7 @@ There are several fundamental functions prepared as well such as: `HOME`, `cd`, 
  ...
 
 # search recursivley and matching a pattern
->>> ls(".", r=True, rg=".py")
+>>> ls(".", r=True, grep=".py")
 ...
  '.pytest_cache/v/cache/stepwise',
  'foc/__init__.py',
@@ -458,19 +501,19 @@ There are several fundamental functions prepared as well such as: `HOME`, `cd`, 
  ...
 
 # regex patterns comes in
->>> ls(".", r=True, rg=".py$")
+>>> ls(".", r=True, grep=".py$")
 ['./setup.py', 'foc/__init__.py', 'tests/__init__.py', 'tests/test_foc.py']
 
 # that's it!
->>> ls(".", r=True, rg="^(foc).*py$")
+>>> ls(".", r=True, grep="^(foc).*py$")
 ['foc/__init__.py']
 
-# 'grep' builds filter with a regex patters
+# 'grep' builds filter with regex patterns
 >>> grep(r"^(foc).*py$")(ls(".", r=True))
 ['foc/__init__.py']
 ```
 
-#### Dot-accessible dictionary: `dmap`
+### Dot-accessible dictionary: `dmap`
 `dmap` is a _yet another_ `dict`. It's exactly the same as `dict` but it enables to access its nested structure with '_dot notations_'.
 
 ```python
@@ -507,7 +550,7 @@ profession  |  pianist
 ```
 
 
-#### `raise` with a function(_expression_): `error`
+### `raise` with a function(_expression_): `error`
 
 Raise any kinds of exception in `lambda` expression as well.
 
@@ -520,11 +563,11 @@ Raise any kinds of exception in `lambda` expression as well.
 ```
 
 
-#### Other utils
+### Other utils
 _Documents will be updated_
 
 
-#### Real-world Example
+### Real-world Example
 A causal self-attention of the `transformer` model based on `pytorch` can be described as follows. _Somebody_ insists that this helps to follow the process flow without distraction.
 
 ```python

@@ -48,3 +48,9 @@
 - Improved `ls` by adding recursive-search and regex filter
 - Added `reads` and `writes`
 - Removed `fread` and `fwrite`
+
+# 0.2.0
+- Added `uncurry`
+- Simplified lazy operation: `lazy` and `force`.
+- Improved `repeat` and `replicate` and they support callable object.
+- Imporved: `random_int`, `ls`, and `apply`
