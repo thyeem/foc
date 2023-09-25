@@ -147,8 +147,7 @@ def test_ff_():
     assert ff_("-", 5)(2) == -3
     assert f_(fn, 1, 2)(3, 4) == "1-2-3-4"
     assert f_(fn, 1, 2, 3)(4) == "1-2-3-4"
-    assert ff_(fn, 1, 2)(3, 4) == "3-4-1-2"
-    assert ff_(fn, 1, 2, sgra=True)(3, 4) == "4-3-2-1"
+    assert ff_(fn, 1, 2)(3, 4) == "4-3-2-1"
 
 
 def test_curry():

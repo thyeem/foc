@@ -1,6 +1,7 @@
 import itertools as it
 import operator as op
 import os
+import random as rd
 import re
 import sys
 import threading
@@ -83,7 +84,10 @@ __all__ = [
     "_in",
     "_is",
     "_is_not",
-    "bop",
+    "_t",
+    "_l",
+    "_s",
+    "_r",
     "bimap",
     "first",
     "second",
@@ -108,14 +112,14 @@ __all__ = [
     "concatmapl",
     "intersperse",
     "intercalate",
-    "lazy",
-    "force",
-    "mforce",
     "flat",
     "flatl",
     "flatt",
     "flatd",
     "flats",
+    "lazy",
+    "force",
+    "mforce",
     "reads",
     "writes",
     "split_at",
@@ -136,8 +140,10 @@ __all__ = [
     "rmdir",
     "bytes_to_int",
     "int_to_bytes",
-    "random_bytes",
-    "random_int",
+    "randbytes",
+    "rand",
+    "randn",
+    "randint",
     "choice",
     "shuffle",
     "dmap",
@@ -280,7 +286,10 @@ def product(x):
 
 
 def flip(f):
-    """flip(f) takes its arguments in the reverse order of f"""
+    """flip(f) takes its arguments in the reverse order of f:
+    `f :: a -> b -> ... -> c -> d -> o`
+    `flip(f) :: d -> c -> ... -> b -> a -> o`
+    """
 
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -293,24 +302,14 @@ def f_(f, *args, **kwargs):
     """build left-associative partial application,
     where the given function's arguments partially evaluation from the left
     """
+    return partial(o_(f), *args, **kwargs)
 
-    return partial(bop(f), *args, **kwargs)
 
-
-def ff_(f, *args, sgra=False, **kwargs):
+def ff_(f, *args, **kwargs):
     """build left-associative partial application,
     where the given function's arguments partially evaluation from the right
-
-    Passing arguments in reverse order for a function is painful.
-    `ff_` takes arguments _in order_ by default (`sgra=False`).
-    When 'sgra=True', it will take arguments in reverse order.
-
-    naming: 'sgra' == 'args'[::-1]
     """
-    if sgra:
-        return f_(flip(bop(f)), *args, **kwargs)
-    else:
-        return flip(f_(flip(bop(f)), *args[::-1], **kwargs))
+    return f_(flip(o_(f)), *args, **kwargs)
 
 
 def curry(f, n=None):
@@ -320,7 +319,7 @@ def curry(f, n=None):
     This function takes positional arguments only when currying.
     Use partial application `f_` before currying if you need to change kwargs
     """
-    f = bop(f)
+    f = o_(f)
     n = n if n else len(fn_args(f))
 
     @wraps(f)
@@ -336,15 +335,15 @@ c_ = curry
 
 def cc_(f):
     """build curried function that takes arguments from the right"""
-    return c_(flip(bop(f)))
+    return c_(flip(o_(f)))
 
 
 def uncurry(f):
     """convert a uncurried normal function to a unary function of a tuple args.
     This is not exact reverse operation of `curry`. Here `uncurry` simply does:
-    `uncurry :: (a -> b -> c) -> (a, b) -> c`
+    `uncurry :: (a -> ... -> b -> o) -> (a, ..., b, o) -> o`
     """
-    f = bop(f)
+    f = o_(f)
 
     @wraps(f)
     def wrapper(x):
@@ -499,31 +498,21 @@ _is = op.is_
 _is_not = op.is_not
 
 
-def bop(f):
-    """symbolic binary operators"""
-    return {
-        "+": op.add,
-        "-": op.sub,
-        "*": op.mul,
-        "/": op.truediv,
-        "//": op.floordiv,
-        "**": op.pow,
-        "@": op.matmul,
-        "%": op.mod,
-        "&": op.and_,
-        "|": op.or_,
-        "^": op.xor,
-        "<<": op.lshift,
-        ">>": op.rshift,
-        "==": op.eq,
-        "!=": op.ne,
-        ">": op.gt,
-        ">=": op.ge,
-        "<": op.lt,
-        "<=": op.le,
-        "[]": op.getitem,
-        ",": lambda a, b: (a, b),
-    }.get(f, f)
+def _t(*args):
+    """functional form of tuple constructor"""
+    return args
+
+
+_l = cfd(list)(_t)
+_l.__doc__ = "functional form of list constructor"
+
+
+_s = cfd(set)(_t)
+_s.__doc__ = "functional form of set constructor"
+
+
+_r = cfd(lambda x: x[::-1])(_t)
+_r.__doc__ = "generate args in the reverse order of '_t'"
 
 
 def bimap(f, g, x):
@@ -556,40 +545,40 @@ def iterate(f, x):
 
 
 def apply(f, *args, **kwargs):
-    return bop(f)(*args, **kwargs)
+    return o_(f)(*args, **kwargs)
 
 
 def foldl(f, initial, xs):
     """left-associative fold of an iterable. The same as 'foldl' in Haskell"""
-    return reduce(bop(f), xs, initial)
+    return reduce(o_(f), xs, initial)
 
 
 def foldl1(f, xs):
     """`foldl` without initial value. The same as 'foldl1' in Haskell"""
-    return reduce(bop(f), xs)
+    return reduce(o_(f), xs)
 
 
 def foldr(f, inital, xs):
     """right-associative fold of an iterable. The same as 'foldr' in Haskell"""
-    return reduce(flip(bop(f)), xs[::-1], inital)
+    return reduce(flip(o_(f)), xs[::-1], inital)
 
 
 def foldr1(f, xs):
     """`foldr` without initial value. The same as 'foldr1' in Haskell"""
-    return reduce(flip(bop(f)), xs[::-1])
+    return reduce(flip(o_(f)), xs[::-1])
 
 
 @cfd(list)
 def scanl(f, initial, xs):
     """returns a list of successive reduced values from the left
     The same as `scanl` in Haskell"""
-    return accumulate(xs, bop(f), initial=initial)
+    return accumulate(xs, o_(f), initial=initial)
 
 
 @cfd(list)
 def scanl1(f, xs):
     """`scanl` without starting value. The same as 'scanl1' in Haskell"""
-    return accumulate(xs, bop(f))
+    return accumulate(xs, o_(f))
 
 
 @cfd(reverse)
@@ -597,13 +586,57 @@ def scanr(f, initial, xs):
     """returns a list of successive reduced values from the right
     The same as `scanr` in Haskell
     """
-    return accumulate(xs[::-1], flip(bop(f)), initial=initial)
+    return accumulate(xs[::-1], flip(o_(f)), initial=initial)
 
 
 @cfd(reverse)
 def scanr1(f, xs):
     """`scanr` without starting value. The same as 'scanr1' in Haskell"""
-    return accumulate(xs[::-1], flip(bop(f)))
+    return accumulate(xs[::-1], flip(o_(f)))
+
+
+def capture(p, string):
+    x = captures(p, string)
+    if x:
+        return fst(x)
+
+
+def captures(p, string):
+    return re.compile(p).findall(string)
+
+
+def o_(f):
+    """get a function from symbolic operators"""
+    return {
+        "+": op.add,
+        "-": op.sub,
+        "*": op.mul,
+        "/": op.truediv,
+        "//": op.floordiv,
+        "**": op.pow,
+        "@": op.matmul,
+        "%": op.mod,
+        "&": op.and_,
+        "|": op.or_,
+        "^": op.xor,
+        "<<": op.lshift,
+        ">>": op.rshift,
+        "==": op.eq,
+        "!=": op.ne,
+        ">": op.gt,
+        ">=": op.ge,
+        "<": op.lt,
+        "<=": op.le,
+        "!!": op.getitem,
+        ",": lambda a, b: (a, b),
+        "..": rangel,
+        "[]": _l,
+        "()": _t,
+        "{}": _s,
+        "-<": _in,
+        "~<": capture,
+        "~~<": captures,
+    }.get(f, f)
 
 
 def permutation(x, r, rep=False):
@@ -614,7 +647,7 @@ def combination(x, r, rep=False):
     return it.combinations_with_replacement(x, r) if rep else it.combinations(x, r)
 
 
-cartprod = ff_(cprod, repeat=1)
+cartprod = f_(cprod, repeat=1)
 cartprod.__doc__ = "returns Cartesian product"
 
 
@@ -645,18 +678,6 @@ def intersperse(sep, x):
 
 intercalate = cfd(concatl)(intersperse)
 intersperse.__doc__ = "inserts the given list between the lists then concat it"
-
-# easy-to-use alias for lazy operation
-lazy = f_
-
-
-def force(x, *args, **kwargs):
-    """forces the delayed-expression to be fully evaluated"""
-    return x(*args, **kwargs) if callable(x) else x
-
-
-mforce = ml_(force)
-mforce.__doc__ = "map 'force' over iterables of delayed-evaluation"
 
 
 def flat(*args):
@@ -690,6 +711,19 @@ flatd.__doc__ = "flatten iterables into deque"
 
 flats = cfd(set)(flat)
 flats.__doc__ = "flatten iterables into set"
+
+
+# easy-to-use alias for lazy operation
+lazy = f_
+
+
+def force(x, *args, **kwargs):
+    """forces the delayed-expression to be fully evaluated"""
+    return x(*args, **kwargs) if callable(x) else x
+
+
+mforce = ml_(force)
+mforce.__doc__ = "map 'force' over iterables of delayed-evaluation"
 
 
 def reads(f=None, mode="r", zipf=False):
@@ -728,17 +762,7 @@ def chunks_of(n, x, fillvalue=None, fill=True):
     return it.zip_longest(*(iter(x),) * n, fillvalue=fillvalue)
 
 
-def capture(p, string):
-    x = captures(p, string)
-    if x:
-        return fst(x)
-
-
-def captures(p, string):
-    return re.compile(p).findall(string)
-
-
-def error(str, e=Exception):
+def error(str="undefined", e=SystemExit):
     raise e(str)
 
 
@@ -832,23 +856,41 @@ def int_to_bytes(x, size=None, byteorder="big"):
     return x.to_bytes(size, byteorder=byteorder)
 
 
-def random_bytes(n):
+def randbytes(n):
     """generate cryptographically secure random bytes"""
     return os.urandom(n)
 
 
-def random_int(x=None, high=None, size=None):
+def rand(x=None, high=None, size=None):
+    return (
+        [rd.uniform(x, high) for _ in range(size)]  # #args == 3
+        if size is not None
+        else rd.uniform(x, high)  # #args == 2
+        if high is not None
+        else rd.uniform(0, x)  # #args == 1
+        if x is not None
+        else rd.random()  # #args == 0
+    )
+
+
+def randn(mu=0, sigma=1, size=None):
+    return (
+        [rd.gauss(mu, sigma) for _ in range(size)]
+        if size is not None
+        else rd.uniform(mu, sigma)
+    )
+
+
+def randint(x=None, high=None, size=None):
     """generate random integer cryptographically secure and faster than numpy's.
     return random integer(s) in range of [low, high)
     """
 
-    def rint(high, low=0):
-        if high is None or low is None:
-            error(f"Error, given no numbers: low={low}, high={high}", e=SystemExit)
+    def rint(high=1 << 256, low=0):
         if low >= high:
             error(f"Error, low({low}) must be less than high({high})", e=SystemExit)
         x = high - low
-        return low + (bytes_to_int(random_bytes((x.bit_length() + 7) // 8)) % x)
+        return low + (bytes_to_int(randbytes((x.bit_length() + 7) // 8)) % x)
 
     return (
         [rint(high, x) for _ in range(size)]  # #args == 3
@@ -857,14 +899,14 @@ def random_int(x=None, high=None, size=None):
         if high is not None
         else rint(x)  # #args == 1
         if x is not None
-        else rint(1 << 256)  # #args == 0
+        else rint()  # #args == 0
     )
 
 
 def shuffle(x):
     """Fisher-Yates shuffle in a cryptographically secure way"""
     for i in range(len(x) - 1, 0, -1):
-        j = random_int(0, i)
+        j = randint(0, i)
         x[i], x[j] = x[j], x[i]
     return x
 
@@ -872,16 +914,18 @@ def shuffle(x):
 def choice(x, size=None, replace=False):
     """Generate a sample with/without replacement from a given iterable"""
     if size is None:
-        return x[random_int(len(x))]
+        return x[randint(len(x))]
     else:
         size = int(len(x) * size) if 0 < size < 1 else size
         replace = True if len(x) < size else replace
         return [
             x[i]
             for i in (
-                random_int(0, len(x), size)
+                randint(0, len(x), size)
                 if replace
-                else shuffle(rangel(len(x)))[:size]
+                else shuffle(
+                    rangel(len(x)),
+                )[:size]
             )
         ]
 

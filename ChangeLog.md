@@ -52,5 +52,11 @@
 # 0.2.0
 - Added `uncurry`
 - Simplified lazy operation: `lazy` and `force`.
-- Improved `repeat` and `replicate` and they support callable object.
+- Improved `repeat` and `replicate` and they support callable object
 - Imporved: `random_int`, `ls`, and `apply`
+
+# 0.2.1
+- Improved `ff_`
+- Added `rand`, `randn`, renamed `randint`
+- Added a few of symbolic operators
+- Added functional contructors: `_t`, `_l`, `_s` and `_r`

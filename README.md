@@ -31,9 +31,9 @@ $ pip install -U foc
 > `map`, `filter`, `zip`, `range`, `flat` ...
 - Provide the functions that unpack generators in `list` as well. (annoying to unpack with `[*]` or `list` every time)
 - Function names that end in `l` indicate the result will be unpacked in a list.
-> `mapl`, `filterl`, `zipl`, `rangel`, `flatl`, ...
+> `mapl`, `filterl`, `zipl`, `rangel`, `flatl`, `takewhilel`, `dropwhilel`, ...
 - Function names that end in `_` indicate that the function is a **partial application** (_not-fully-evaluated function_) builder.
-> `f_`, `ff_`, `c_`, `cc_`, `m_`, `v_`, ...
+> `f_`, `ff_`, `c_`, `cc_`, `m_`, `v_`, `u_`, ...
 - Most function implementations _should be less than 5-lines_.
 - No dependencies except for the `Python` standard library
 - No unnessary wrapping objects.
@@ -119,11 +119,6 @@ True
 
 ### Build partial application: `f_` and `ff_`
 `f_` takes arguments _from the left_ (left-associative) while `ff_` takes them _from the right_ (right-associative).
-
-> When using `ff_`, passing arguments in reverse order for a long-args function is painful.
->
-> `ff_` takes arguments _in order_ by default (`sgra=False`). It will take args _in reverse order_ when the `sgra` keyword is on.
->
 > _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
 
 ```python
@@ -149,9 +144,6 @@ True
 1-2-3-4                                       # print_args(1, 2, 3, 4)
 
 >>> ff_(print_args, 1, 2)(3, 4)               # partial-eval from the right
-3-4-1-2                                       # print_args(3, 4, 1, 2)
-
->>> ff_(print_args, 1, 2, sgra=True)(3, 4)    # partial-eval from the right (sgra=True)
 4-3-2-1                                       # print_args(4, 3, 2, 1)
 ```
 
@@ -275,6 +267,7 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 ```
 
 ```python
+# generate a filter to select only even numbers
 >>> even_nums = vl_(even)
 
 >>> even_nums(range(10))
@@ -283,14 +276,18 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 >>> even_nums({2, 3, 5, 7, 11, 13, 17, 19, 23})
 [2]
 
+# among prime numbers less than 50
 >>> primes_lt_50 = vvl_([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47])
 
+# numbers greater than 20 (among prime numbers less than 50)
 >>> primes_lt_50(ff_(">", 20))    # (> 20)
 [23, 29, 31, 37, 41, 43, 47]
 
+# the same, used a lambda function
 >>> primes_lt_50(lambda x: x % 3 == 2)
 [2, 5, 11, 17, 23, 29, 41, 47]
 
+# the same, used function composition
 >>> primes_lt_50(cf_(ff_("==", 2), ff_("%", 3)))    # ((== 2) . (% 3))
 [2, 5, 11, 17, 23, 29, 41, 47]
 ```
@@ -303,7 +300,7 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 (8, 49)                                         # (3+5, 7*7)
 
 >>> first(f_("+", 3), (5, 7))                   # first (3+) (5, 7)
-(8, 7)                                             # (3+5, 7)
+(8, 7)                                          # (3+5, 7)
 
 >>> second(f_("*", 7), (5, 7))                  # second (7*) (5, 7)
 (5, 49)                                         # (5, 7*7)
@@ -375,10 +372,10 @@ In order to generate a lazy expression, use `lazy(function-name, *args, **kwargs
 
 ```python
 # strictly generate a random integer between [1, 10)
->>> random_int(1, 10)
+>>> randint(1, 10)
 
 # generate a lazy expression for the above
->>> deferred = lazy(random_int, 1, 10)
+>>> deferred = lazy(randint, 1, 10)
 
 # evaluate it when it need
 >>> force(deferred)
@@ -390,7 +387,7 @@ In order to generate a lazy expression, use `lazy(function-name, *args, **kwargs
 Are those evaluations with `lazy` really deferred?
 
 ```python
->>> long_list = random_int(1, 100000, 100000)    # a list of one million random integers
+>>> long_list = randint(1, 100000, 100000)    # a list of one million random integers
 
 >>> %timeit sort(long_list)
 142 ms ± 245 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
@@ -402,25 +399,25 @@ Are those evaluations with `lazy` really deferred?
 
 When to use? Let me give an example.
 
-For given a function `random_int(low, high)`, how can we generate a list of random integers?
+For given a function `randint(low, high)`, how can we generate a list of random integers?
 
 ```python
-[ random_int(1, 10) for _ in range(5) ]    # acutally the same as 'random_int(1, 10, 5)'
+[ randint(1, 10) for _ in range(5) ]    # exactly the same as 'randint(1, 10, 5)'
 ```
 
 It's the simplest way but what about using `replicate`?
 ```python
 # generate a list of random integers using 'replicate'
->>> replicate(5, random_int(1, 10))
+>>> replicate(5, randint(1, 10))
 [7, 7, 7, 7, 7]        # ouch, duplication of the first evaluated item.
 ```
 Wrong! This result is definitely not what we want. We need to defer the function evaluation till it is _replicated_.
 
-Just use `lazy(random_int, 1, 10)` instead of `random_int(1, 10)`
+Just use `lazy(randint, 1, 10)` instead of `randint(1, 10)`
 
 ```python
 # replicate 'deferred expression'
->>> randos = replicate(5, lazy(random_int, 1, 10))
+>>> randos = replicate(5, lazy(randint, 1, 10))
 
 # evaluate when needed
 >>> mforce(randos)      # mforce = ml_(force), map 'force' over deferred expressions
@@ -433,7 +430,7 @@ Not related to `lazy` operation, but you do the same thing with `uncurry`
 
 ```python
 # replicate the tuple of arguments (1, 10) and then apply to uncurried function
->>> ml_(u_(random_int))(replicate(5, (1,10)))    # u_ == uncurry
+>>> ml_(u_(randint))(replicate(5, (1,10)))    # u_ == uncurry
 [7, 6, 1, 7, 2]
 ```
 
@@ -588,15 +585,16 @@ A causal self-attention of the `transformer` model based on `pytorch` can be des
         #   = attention-weighted value (attention score)
 
         return cf_(
-            self.resid_dropout,  # residual dropout
+            self.dropout,  # dropout of layer's output
             self.c_proj,  # linear projection
-            ff_(torch.Tensor.view, B, S, E),  # (B, S, N, H) -> (B, S, E)
+            ff_(torch.Tensor.view, *_r(B, S, E)),  # (B, S, N, H) -> (B, S, E)
             torch.Tensor.contiguous,  # contiguos in-memory tensor
-            ff_(torch.transpose, 1, 2),  # (B, S, N, H)
+            ff_(torch.transpose, *_r(1, 2)),  # (B, S, N, H)
             ff_(torch.matmul, v),  # (B, N, S, S) x (B, N, S, H) -> (B, N, S, H)
-            self.attn_dropout,  # attention dropout
-            ff_(F.softmax, dim=-1),  # softmax
-            ff_(torch.masked_fill, self.mask[:,:,:S,:S] == 0, float("-inf")),  # mask
+            self.dropout_attn,  # attention dropout
+            ff_(torch.masked_fill, *_r(mask == 0, 0.0)),  # double-check masking
+            f_(F.softmax, dim=-1),  # softmax
+            ff_(torch.masked_fill, *_r(mask == 0, float("-inf"))),  # no-look-ahead
             ff_("/", math.sqrt(k.size(-1))),  # / sqrt(d_k)
             ff_(torch.matmul, k.transpose(-2, -1)),  # Q @ K^T -> (B, N, S, S)
         )(q)
