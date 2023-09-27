@@ -60,3 +60,6 @@
 - Added `rand`, `randn`, renamed `randint`
 - Added a few of symbolic operators
 - Added functional contructors: `_t`, `_l`, `_s` and `_r`
+
+# 0.2.2
+- Fixed `choice`: support sampling from probability lists

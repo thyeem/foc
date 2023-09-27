@@ -911,21 +911,31 @@ def shuffle(x):
     return x
 
 
-def choice(x, size=None, replace=False):
+def choice(x, size=None, replace=False, p=None):
     """Generate a sample with/without replacement from a given iterable"""
+
+    def fromp(x, probs, e=1e-6):
+        if len(x) != len(probs):
+            error(f"Error, not the same size: {len(x)}, {len(probs)}")
+        if not 1 - e < sum(probs) < 1 + e:
+            error(f"Error, sum of probs({sum(probs)}) != 1")
+        r = rand()
+        for y, p in zip(x, scanl1(f_("+"), probs)):
+            if r < p:
+                return y
+
+    if p is not None:
+        return fromp(x, p)
     if size is None:
         return x[randint(len(x))]
     else:
         size = int(len(x) * size) if 0 < size < 1 else size
-        replace = True if len(x) < size else replace
         return [
             x[i]
             for i in (
                 randint(0, len(x), size)
-                if replace
-                else shuffle(
-                    rangel(len(x)),
-                )[:size]
+                if (True if len(x) < size else replace)
+                else shuffle(rangel(len(x)))[:size]
             )
         ]
 
