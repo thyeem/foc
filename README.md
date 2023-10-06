@@ -547,18 +547,30 @@ profession  |  pianist
 ```
 
 
-### `raise` with a function(_expression_): `error`
+### `raise` and `assert` with _expressions_: `error` and `guard`
 
 Raise any kinds of exception in `lambda` expression as well.
 
 ```python
->>> error("Error, nice!", e=TypeError)   # by default, e=Exception
+>>> error(MESSAGE, e=EXCEPTION_TO_RAISE)    # by default, e=SystemExit
+
+>>> error("Error, used wrong type", e=TypeError)
 
 >>> error("out of range", e=IndexError)
 
->>> lambda x, y: x if x is not None else error("Error, got None", e=ValueError)
+>>> (lambda x: x if x is not None else error("Error, got None", e=ValueError))(None)
 ```
+Likewise, use `guard` if there need _assertion_ not as a statement, but as an _expression_.
 
+```python
+>>> guard(PREDICATE, MESSAGE, e=EXCEPTION_TO_RAISE)    # by default, e=SystemExit
+
+>>> guard("Almost" == "enough", "'Almost' is never 'enough'")
+
+>>> guard(rand() > 0.5, "Assertion error occurs with a 0.5 probability")
+
+>>> guard(len(x := range(11)) == 10, f"length is not 10: {len(x)}")
+```
 
 ### Other utils
 _Documents will be updated_

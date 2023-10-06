@@ -63,3 +63,9 @@
 
 # 0.2.2
 - Fixed `choice`: support sampling from probability lists
+
+# 0.2.3
+- Fixed `reads` and `writes` -> `reader` and `writer` (renamed)
+- Added `chars` and `unchars`
+- Added `_d`, functional form of deque constructor
+- Added `guard`, assertion as an expression

@@ -37,6 +37,8 @@ __all__ = [
     "odd",
     "even",
     "null",
+    "chars",
+    "unchars",
     "words",
     "unwords",
     "lines",
@@ -87,6 +89,7 @@ __all__ = [
     "_t",
     "_l",
     "_s",
+    "_d",
     "_r",
     "bimap",
     "first",
@@ -120,12 +123,13 @@ __all__ = [
     "lazy",
     "force",
     "mforce",
-    "reads",
-    "writes",
+    "reader",
+    "writer",
     "split_at",
     "chunks_of",
     "capture",
     "captures",
+    "guard",
     "error",
     "HOME",
     "cd",
@@ -246,6 +250,16 @@ def even(x):
 def null(x):
     """check if a given collection is empty"""
     return len(x) == 0
+
+
+def chars(x):
+    """split string 'x' into `chars`: the same as (:[]) <$> x"""
+    return list(x)
+
+
+def unchars(x):
+    """inverse operation of 'chars': the same as 'concat'"""
+    return "".join(x)
 
 
 def words(x):
@@ -511,6 +525,10 @@ _s = cfd(set)(_t)
 _s.__doc__ = "functional form of set constructor"
 
 
+_d = cfd(deque)(_t)
+_d.__doc__ = "functional form of deque constructor"
+
+
 _r = cfd(lambda x: x[::-1])(_t)
 _r.__doc__ = "generate args in the reverse order of '_t'"
 
@@ -726,8 +744,12 @@ mforce = ml_(force)
 mforce.__doc__ = "map 'force' over iterables of delayed-evaluation"
 
 
-def reads(f=None, mode="r", zipf=False):
+def reader(f=None, mode="r", zipf=False):
     """get ready to read stream from a file or stdin, then returns the handle"""
+    guard(
+        _is_not(f, None) and exists(f, "f"),
+        f"Error, not found such a file: {f}",
+    )
     return (
         sys.stdin
         if f is None
@@ -737,7 +759,7 @@ def reads(f=None, mode="r", zipf=False):
     )
 
 
-def writes(f=None, mode="w", zipf=False):
+def writer(f=None, mode="w", zipf=False):
     """get ready to write stream to a file or stout, then returns the handle"""
     return (
         sys.stdout
@@ -762,8 +784,15 @@ def chunks_of(n, x, fillvalue=None, fill=True):
     return it.zip_longest(*(iter(x),) * n, fillvalue=fillvalue)
 
 
-def error(str="undefined", e=SystemExit):
-    raise e(str)
+def guard(p, msg="guard", e=SystemExit):
+    """'assert' as a function or expression"""
+    if not p:
+        error(msg=msg, e=e)
+
+
+def error(msg="error", e=SystemExit):
+    """'raise' an exception with a function or expression"""
+    raise e(msg)
 
 
 def HOME():
@@ -887,8 +916,7 @@ def randint(x=None, high=None, size=None):
     """
 
     def rint(high=1 << 256, low=0):
-        if low >= high:
-            error(f"Error, low({low}) must be less than high({high})", e=SystemExit)
+        guard(low < high, f"Error, low({low}) must be less than high({high})")
         x = high - low
         return low + (bytes_to_int(randbytes((x.bit_length() + 7) // 8)) % x)
 
@@ -915,10 +943,14 @@ def choice(x, size=None, replace=False, p=None):
     """Generate a sample with/without replacement from a given iterable"""
 
     def fromp(x, probs, e=1e-6):
-        if len(x) != len(probs):
-            error(f"Error, not the same size: {len(x)}, {len(probs)}")
-        if not 1 - e < sum(probs) < 1 + e:
-            error(f"Error, sum of probs({sum(probs)}) != 1")
+        guard(
+            len(x) == len(probs),
+            f"Error, not the same size: {len(x)}, {len(probs)}",
+        )
+        guard(
+            1 - e < sum(probs) < 1 + e,
+            f"Error, sum of probs({sum(probs)}) != 1",
+        )
         r = rand()
         for y, p in zip(x, scanl1(f_("+"), probs)):
             if r < p:
@@ -934,7 +966,7 @@ def choice(x, size=None, replace=False, p=None):
             x[i]
             for i in (
                 randint(0, len(x), size)
-                if (True if len(x) < size else replace)
+                if len(x) < size or replace
                 else shuffle(rangel(len(x)))[:size]
             )
         ]
@@ -1007,12 +1039,9 @@ def polling(f, sec, args=None, kwargs=None):
 
 def neatly(_x={}, _width=500, _cols=None, **kwargs):
     """generate justified string of 'dict' or 'dict-items'"""
-
     d = {**_x, **kwargs}
     _cols = _cols or max(map(len, d.keys()))
-
-    if _width < _cols:
-        error(f"Error, cannot print with not enough width: {_width}")
+    guard(_width >= _cols, f"Error, cannot print with not enough width: {_width}")
 
     def go(x, c, w):
         if isinstance(x, dict):
@@ -1038,7 +1067,7 @@ def neatly(_x={}, _width=500, _cols=None, **kwargs):
             width=_width,
             break_on_hyphens=False,
             drop_whitespace=False,
-            initial_indent=f"{k.replace('_','-'):>{_cols}}  |  ",
+            initial_indent=f"{k:>{_cols}}  |  ",
             subsequent_indent=f"{' ':>{_cols}}  |  ",
         )
         for k, v in d.items()
