@@ -746,10 +746,8 @@ mforce.__doc__ = "map 'force' over iterables of delayed-evaluation"
 
 def reader(f=None, mode="r", zipf=False):
     """get ready to read stream from a file or stdin, then returns the handle"""
-    guard(
-        _is_not(f, None) and exists(f, "f"),
-        f"Error, not found such a file: {f}",
-    )
+    if f is not None:
+        guard(exists(f, "f"), f"Error, not found such a file: {f}")
     return (
         sys.stdin
         if f is None

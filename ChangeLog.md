@@ -69,3 +69,6 @@
 - Added `chars` and `unchars`
 - Added `_d`, functional form of deque constructor
 - Added `guard`, assertion as an expression
+
+# 0.2.3.1
+- Hotfix `reader`
