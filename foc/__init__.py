@@ -22,6 +22,8 @@ __all__ = [
     "safe",
     "id",
     "const",
+    "seq",
+    "void",
     "fst",
     "snd",
     "nth",
@@ -130,6 +132,7 @@ __all__ = [
     "capture",
     "captures",
     "guard",
+    "guard_",
     "error",
     "HOME",
     "cd",
@@ -177,6 +180,14 @@ def id(x):
 
 def const(x):
     return lambda _: x
+
+
+def seq(_):
+    return id
+
+
+def void(_):
+    return
 
 
 @safe
@@ -537,17 +548,19 @@ def bimap(f, g, x):
     """map over both 'first' and 'second' arguments at the same time
     bimap(f, g) == first(f) . second(g)
     """
-    return cf_(f_(first, f), f_(second, g))(x)
+    return f(fst(x)), g(snd(x))
 
 
 def first(f, x):
     """map covariantly over the 'first' argument"""
-    return f(fst(x)), snd(x)
+    # return f(fst(x)), snd(x)
+    return bimap(f, id, x)
 
 
 def second(g, x):
     """map covariantly over the 'second' argument"""
-    return fst(x), g(snd(x))
+    # return fst(x), g(snd(x))
+    return bimap(id, g, x)
 
 
 def until(p, f, x):
@@ -788,16 +801,25 @@ def guard(p, msg="guard", e=SystemExit):
         error(msg=msg, e=e)
 
 
+def guard_(f, msg="guard", e=SystemExit):
+    """partial application builder for 'guard':
+    the same as 'guard', but the positional predicate is given
+    as a function rather than an boolean expression"""
+    return lambda x: seq(guard(f(x), msg=msg, e=e))(x)
+
+
 def error(msg="error", e=SystemExit):
     """'raise' an exception with a function or expression"""
     raise e(msg)
 
 
 def HOME():
+    """get the current user's home directory: the same as '$HOME'"""
     return os.getenv("HOME")
 
 
 def cd(path=None):
+    """change directories: similar to the shell-command 'cd'"""
     if path:
         os.chdir(normpath(path, abs=True))
     else:
@@ -806,19 +828,30 @@ def cd(path=None):
 
 
 def pwd():
+    """get the current directory: similar to the shell-command 'pwd'"""
     return os.getcwd()
 
 
-def ls(d=".", r=False, grep=None):
-    d = normpath(d, abs=False)
-    fs = os.listdir(d)
+def ls(path=".", r=False, grep=None):
+    """list the given 'path'contents of files and directories: 'ls -1 path'
+    when 'grep=regex' is given, it's similar to 'ls -1 path | grep regex'
+    when r is set, it behaves like 'find path', listing recursively with paths.
+    """
+    path = normpath(path)
+    guard(exists(path), f"Error, no such file or directory: {path}")
+    fs = (
+        [f"{path}/{f}" for f in os.listdir(path)]
+        if exists(path, "d")
+        else [
+            path,
+        ]
+    )
     finish = sort if grep is None else cf_(sort, globals()["grep"](grep))
     if not r:
-        return finish([f"{d}/{f}" for f in fs])
+        return finish(fs)
     else:
         return cf_(finish, flat)(
-            (ls(f, r=r, grep=grep)) if exists(f, "d") else f
-            for f in [f"{d}/{f}" for f in fs]
+            ls(f, r=r, grep=grep) if exists(f, "d") else f for f in fs
         )
 
 

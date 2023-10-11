@@ -72,3 +72,7 @@
 
 # 0.2.3.1
 - Hotfix `reader`
+
+# 0.2.4
+- Added `seq`, `void`, and `guard_`
+- Fixed `ls` and `bimap`
