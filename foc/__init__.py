@@ -9,6 +9,7 @@ import zipfile
 from collections import deque
 from datetime import datetime, timedelta
 from functools import partial, reduce, wraps
+from glob import glob
 from inspect import signature
 from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
@@ -17,8 +18,6 @@ from shutil import rmtree
 from textwrap import fill
 
 __all__ = [
-    "flist",
-    "deque",
     "safe",
     "id",
     "const",
@@ -46,6 +45,7 @@ __all__ = [
     "lines",
     "unlines",
     "elem",
+    "nub",
     "repeat",
     "replicate",
     "cycle",
@@ -53,6 +53,7 @@ __all__ = [
     "tee",
     "islice",
     "product",
+    "deque",
     "flip",
     "f_",
     "ff_",
@@ -160,6 +161,7 @@ __all__ = [
     "neatly",
     "nprint",
     "timestamp",
+    "flist",
 ]
 
 
@@ -291,6 +293,10 @@ def unlines(x):
 
 def elem(x, xs):
     return x in xs
+
+
+def nub(x):
+    return cf_(list, dict.fromkeys)(x)
 
 
 def repeat(x, nf=True):
@@ -832,32 +838,39 @@ def pwd():
     return os.getcwd()
 
 
-def ls(path=".", r=False, grep=None):
-    """list the given 'path'contents of files and directories: 'ls -1 path'
-    when 'grep=regex' is given, it's similar to 'ls -1 path | grep regex'
-    when r is set, it behaves like 'find path', listing recursively with paths.
+def ls(path=".", grep=None, i=False, r=False):
+    """list the given <path>'s contents of files and directories: 'ls -1 <path>'
+    - glob patterns (*,?,[) in <path> are allowed.
+    - if 'grep=<regex>' is given, it's similar to 'ls -1 <path> | grep <regex>'
+    - if i is set, it maks 'grep' case-insensitive (turns on grep's -i flag)
+    - if r is set, it behaves like 'find <path>', recursively listing <path>
     """
-    path = normpath(path)
-    guard(exists(path), f"Error, no such file or directory: {path}")
-    fs = (
-        [f"{path}/{f}" for f in os.listdir(path)]
-        if exists(path, "d")
-        else [
-            path,
-        ]
+    paths = (
+        glob(normpath(path))
+        if re.search(r"[\*\+\?\[]", path)
+        else cf_(
+            _l,
+            guard_(exists, f"Error, no such file or directory: {path}"),
+            normpath,
+        )(path)
     )
-    finish = sort if grep is None else cf_(sort, globals()["grep"](grep))
-    if not r:
-        return finish(fs)
-    else:
-        return cf_(finish, flat)(
-            ls(f, r=r, grep=grep) if exists(f, "d") else f for f in fs
+    fs = flat(
+        [f"{path}/{f}" for f in os.listdir(path)] if exists(path, "d") else path
+        for path in paths
+    )
+    finish = sort if grep is None else cf_(sort, globals()["grep"](grep, i=i))
+    return (
+        cf_(finish, flat)(
+            ls(f, grep=grep, i=i, r=r) if exists(f, "d") else f for f in fs
         )
+        if r
+        else finish(fs)
+    )
 
 
 @safe
-def grep(regex):
-    return vl_(f_(re.search, regex))
+def grep(regex, i=False):
+    return vl_(f_(re.search, regex, flags=re.IGNORECASE if i else 0))
 
 
 def normpath(path, abs=False):
@@ -1145,7 +1158,7 @@ def __sig__():
         except:
             return " is valid, but live-inspect not available"
 
-    return dmap({x: x + sig(eval(x)) for x in __all__[2:]})
+    return dmap({x: x + sig(eval(x)) for x in __all__})
 
 
 def flist(to_dict=False):
