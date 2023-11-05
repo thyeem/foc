@@ -467,17 +467,16 @@ But, personally I feel like it's still complicated and I'm not likely to use it.
 
 They never understand `~/francis/foc` and are not tolerable `foc//__init__` (typo `/`).
 
-I needed more handy one that controls everything with only `regex` patterns.
+I needed more handy one that controls everything with only `glob` and `regex` patterns.
 
-There are several fundamental functions prepared as well such as: `HOME`, `cd`, `pwd`, `mkdir`, `rmdir`, `exists`, `dirname`, and `basename` ..
 
 ```python
-# couldn't be simpler!
->>> ls(".git")
-['.git/COMMIT_EDITMSG',
- '.git/FETCH_HEAD',
- '.git/HEAD',
- ...
+# couldn't be simpler! expand "~" automatically
+>>> ls("~")    # the same as `ls -1 ~`: returns a list of $HOME
+
+# support glob patterns (*, ?, [)
+>>> ls("./*/*.py")
+['foc/__init__.py', 'tests/__init__.py', 'tests/test_foc.py']
 
 # list up recursively, like "find .git"
 >>> ls(".git", r=True)
@@ -488,8 +487,8 @@ There are several fundamental functions prepared as well such as: `HOME`, `cd`, 
  '.git/logs/HEAD',
  ...
 
-# search recursivley and matching a pattern
->>> ls(".", r=True, grep=".py")
+# search recursivley and matching a pattern with `grep`
+>>> ls(".", r=True, i=True, grep=".PY")    # 'i=True' turns on case-insensitive (-i flag)
 ...
  '.pytest_cache/v/cache/stepwise',
  'foc/__init__.py',
@@ -509,6 +508,7 @@ There are several fundamental functions prepared as well such as: `HOME`, `cd`, 
 >>> grep(r"^(foc).*py$")(ls(".", r=True))
 ['foc/__init__.py']
 ```
+There are several fundamental functions prepared as well such as: `HOME`, `cd`, `pwd`, `mkdir`, `rmdir`, `exists`, `dirname`, `basename` and so on.
 
 ### Dot-accessible dictionary: `dmap`
 `dmap` is a _yet another_ `dict`. It's exactly the same as `dict` but it enables to access its nested structure with '_dot notations_'.

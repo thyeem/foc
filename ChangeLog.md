@@ -76,3 +76,7 @@
 # 0.2.4
 - Added `seq`, `void`, and `guard_`
 - Fixed `ls` and `bimap`
+
+# 0.2.5
+- Imporved `ls` and `grep`
+- Added `nub`
