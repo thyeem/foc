@@ -80,3 +80,7 @@
 # 0.2.5
 - Imporved `ls` and `grep`
 - Added `nub`
+
+# 0.2.6
+- Imporved `dmap` and `nprint`
+- Added `pbcopy` and `pbpaste`

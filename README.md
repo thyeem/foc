@@ -437,6 +437,7 @@ Not related to `lazy` operation, but you do the same thing with `uncurry`
 ### Normalize containers: `flat`
 `flat` flattens all kinds of iterables except for string-like object, _regardless of the number of arguments_.
 
+`flat(*args)`
 ```python
 # Assume that we regenerate 'data' every time in the examples below
 >>> data = [1,2,[3,4,[[[5],6],7,{8},((9),10)],range(11,13)], (x for x in [13,14,15])]
@@ -469,79 +470,155 @@ They never understand `~/francis/foc` and are not tolerable `foc//__init__` (typ
 
 I needed more handy one that controls everything with only `glob` and `regex` patterns.
 
-
+`ls(path=PATH, grep=REGEX, i=BOOL, r=BOOL)`
 ```python
 # couldn't be simpler! expand "~" automatically
 >>> ls("~")    # the same as `ls -1 ~`: returns a list of $HOME
 
 # support glob patterns (*, ?, [)
 >>> ls("./*/*.py")
+```
+```
 ['foc/__init__.py', 'tests/__init__.py', 'tests/test_foc.py']
-
+```
+```python
 # list up recursively, like "find .git"
 >>> ls(".git", r=True)
+```
+```
 ...
  '.git/hooks/update.sample',
  '.git/index',
  '.git/info/exclude',
  '.git/logs/HEAD',
  ...
-
+```
+```python
 # search recursivley and matching a pattern with `grep`
 >>> ls(".", r=True, i=True, grep=".PY")    # 'i=True' turns on case-insensitive (-i flag)
+```
+```
 ...
  '.pytest_cache/v/cache/stepwise',
  'foc/__init__.py',
  'foc/__pycache__/__init__.cpython-310.pyc',
  'tests/__init__.py',
  ...
-
+```
+```python
 # regex patterns comes in
 >>> ls(".", r=True, grep=".py$")
+```
+```
 ['./setup.py', 'foc/__init__.py', 'tests/__init__.py', 'tests/test_foc.py']
-
+```
+```python
 # that's it!
 >>> ls(".", r=True, grep="^(foc).*py$")
+```
+```
 ['foc/__init__.py']
+```
+`grep(REGEX, i=BOOL)` yields a function: `[STRING] -> [STRING]`
 
+```python
 # 'grep' builds filter with regex patterns
 >>> grep(r"^(foc).*py$")(ls(".", r=True))
+```
+```
 ['foc/__init__.py']
 ```
 There are several fundamental functions prepared as well such as: `HOME`, `cd`, `pwd`, `mkdir`, `rmdir`, `exists`, `dirname`, `basename` and so on.
 
+### Neatify data structures: `neatly` and `nprint`
+`neatly` generates neatly formatted string of the complex data structures of `dict` and `list`.
+
+`nprint` (_neatly-print_) prints data structures to `stdout` using `neatly` formatter."""
+
+`nprint(...) = print(neatly(...))`
+
+`nprint(DICT, _cols=INDENT, _width=WRAP, **kwargs)`
+
+
+```python
+>>> o = dict(name="yunchan lim", age=19, profession="pianist")
+>>> mozart=["piano concerto no.22 in E-flat Major, k.482", "sonata No.9 in D Major, k.311"]
+>>> beethoven=["piano concerto no.3 in C minor, op.37", "eroica variations, Op.35"]
+>>> nprint(o, cliburn=dict(mozart=mozart, beethoven=beethoven))
+```
+```
+      name  |  'yunchan lim'
+       age  |  19
+profession  |  'pianist'
+   cliburn  |     mozart  -  'piano concerto no.22 in E-flat Major, k.482'
+            :             -  'sonata No.9 in D Major, k.311'
+            :  beethoven  -  'piano concerto no.3 in C minor, op.37'
+            :             -  'eroica variations, Op.35'
+```
+```python
+>>> o = dict(widget=dict(debug="on",
+...                      settings=["log", "0xff",
+...                                dict(window=dict(title="sample", name="main", width=480, height=360))]),
+...          image=dict(src="sun.png", align="center", kind=["data", "size", dict(hOffset=250, vOffset=100)]))
+>>> nprint(o)
+```
+```
+widget  |     debug  |  'on'
+        :  settings  -  'log'
+        :            -  '0xff'
+        :            -  window  |   title  |  'sample'
+        :                       :    name  |  'main'
+        :                       :   width  |  480
+        :                       :  height  |  360
+ image  |    src  |  'sun.png'
+        :  align  |  'center'
+        :   kind  -  'data'
+        :         -  'size'
+        :         -  hOffset  |  250
+        :            vOffset  |  100
+```
+
+
 ### Dot-accessible dictionary: `dmap`
 `dmap` is a _yet another_ `dict`. It's exactly the same as `dict` but it enables to access its nested structure with '_dot notations_'.
 
-```python
->>> d = dmap(name="yunchan lim", age=19, profession="pianist")
->>> nprint(d)    # neatly print 'dict' or 'dict-items'
-      name  |  yunchan lim
-       age  |  19
-profession  |  pianist
+`dmap(DICT, **kwargs)`
 
-# just put the value in the desired key path
+```python
+>>> d = dmap()    # empty dict
+>>> d = dmap(dict(...))
+>>> d = dmap(name="yunchan lim", age=19, profession="pianist")    # or dmap({"name":.., "age":..,})
+
+# just put the value in the desired keypath
 >>> d.cliburn.semifinal.mozart = "piano concerto no.22"
 >>> d.cliburn.semifinal.liszt = "12 transcendental etudes"
 >>> d.cliburn.final.beethoven = "piano concerto no.3"
 >>> d.cliburn.final.rachmaninoff = "piano concerto no.3"
 >>> nprint(d)
-      name  |  yunchan lim
+```
+```
+      name  |  'yunchan lim'
        age  |  19
-profession  |  pianist
-   cliburn  |  semifinal  |        mozart  |  piano concerto no.22
-            |             |         liszt  |  12 transcendental etudes
-            |      final  |     beethoven  |  piano concerto no.3
-            |             |  rachmaninoff  |  piano concerto no.3
-
->>> del d.cliburn
+profession  |  'pianist'
+   cliburn  |  semifinal  |  mozart  |  'piano concerto no.22'
+            :             :   liszt  |  '12 transcendental etudes'
+            :      final  |     beethoven  |  'piano concerto no.3'
+            :             :  rachmaninoff  |  'piano concerto no.3'
+```
+```python
+>>> del d.cliburn.semifinal
 >>> d.profession = "one-in-a-million talent"
 >>> nprint(d)
-        name  |  yunchan lim
-         age  |  19
-  profession  |  one-in-a-million talent
-
-# No such key path
+```
+```
+      name  |  'yunchan lim'
+       age  |  19
+profession  |  'one-in-a-million talent'
+   cliburn  |  final  |     beethoven  |  'piano concerto no.3'
+            :         :  rachmaninoff  |  'piano concerto no.3'
+```
+```python
+# No such keypath
 >>> d.bach.chopin.beethoven
 {}
 ```

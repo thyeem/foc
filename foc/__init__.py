@@ -160,6 +160,8 @@ __all__ = [
     "polling",
     "neatly",
     "nprint",
+    "pbcopy",
+    "pbpaste",
     "timestamp",
     "flist",
 ]
@@ -1019,19 +1021,31 @@ def choice(x, size=None, replace=False, p=None):
 class dmap(dict):
     """dot-accessible dict(map)"""
 
-    __delattr__ = dict.__delitem__
+    def __init__(self, *args, **kwargs):
+        super(dmap, self).__init__(*args, **kwargs)
+        for key, val in self.items():
+            self[key] = self._g(val)
+
+    def _g(self, val):
+        if isinstance(val, dict):
+            return dmap(val)
+        elif isinstance(val, list):
+            return [self._g(x) for x in val]
+        return val
 
     def __getattr__(self, key):
+        if key.startswith("__"):  # disabled for compat with ipython
+            return
         if key not in self and key != "_ipython_canary_method_should_not_exist_":
             self[key] = dmap()
-        o = self[key]
-        return dmap(o) if type(o) is dict else o
+        return self[key]
 
     def __setattr__(self, key, val):
-        if isinstance(val, dict):
-            self[key] = dmap(val)
-        else:
-            self[key] = val
+        self[key] = self._g(val)
+
+    def __delattr__(self, key):
+        if key in self:
+            del self[key]
 
     def __or__(self, o):
         self.update(o)
@@ -1081,47 +1095,75 @@ def polling(f, sec, args=None, kwargs=None):
     return t
 
 
-def neatly(_x={}, _width=500, _cols=None, **kwargs):
-    """generate justified string of 'dict' or 'dict-items'"""
-    d = {**_x, **kwargs}
-    _cols = _cols or max(map(len, d.keys()))
-    guard(_width >= _cols, f"Error, cannot print with not enough width: {_width}")
+def neatly(x={}, _cols=None, _width=10000, _root=True, **kwargs):
+    """create neatly formatted string for data structure of 'dict' and 'list'"""
 
-    def go(x, c, w):
-        if isinstance(x, dict):
-            return neatly(**x, _cols=c, _width=w - c - 6)
-        else:
-            return x
+    def munch(x):
+        return (
+            f"-  {x[3:]}"
+            if x and x[0] == "|"
+            else f"   {x[3:]}"
+            if x and x[0] == ":"
+            else f"-  {x}"
+        )
 
-    def cols(d):
-        o = [len(x) for c in d.values() if isinstance(c, dict) for x in c]
-        return max(o) if o else 0
+    def bullet(o, s):
+        return (
+            (munch(x) for x in s)
+            if isinstance(o, list)
+            else (f":  {x}" if i else f"|  {x}" for i, x in enumerate(s))
+        )
 
-    def linefeeds(k, v):
-        return [
-            (" ", v) if i else (k, v)
-            for i, v in enumerate(
-                filter(cf_(_not, null, str.strip), lines(f"{v}")),
-            )
-        ]
-
-    return "\n".join(
-        fill(
-            f"{v}",
-            width=_width,
+    def filine(x, width, initial, subsequent):
+        return fill(
+            x,
+            width=width,
             break_on_hyphens=False,
             drop_whitespace=False,
-            initial_indent=f"{k:>{_cols}}  |  ",
-            subsequent_indent=f"{' ':>{_cols}}  |  ",
+            initial_indent=initial,
+            subsequent_indent=subsequent,
         )
-        for k, v in d.items()
-        for k, v in linefeeds(k, go(v, cols(d), _width))
-    )
+
+    if isinstance(x, dict):
+        d = x | kwargs
+        if not d:
+            return ""
+        _cols = _cols or max(map(len, d.keys()))
+        return unlines(
+            filine(v, _width, f"{k:>{_cols}}  ", f"{' ':>{_cols}}     ")
+            for a, o in d.items()
+            for k, v in [
+                ("", b) if i else (a, b)
+                for i, b in enumerate(bullet(o, lines(neatly(o, _root=0))))
+            ]
+        )
+    elif isinstance(x, list):
+        if _root:
+            return neatly({"'": x}, _root=0)
+        return unlines(
+            filine(v, _width, "", "   ")
+            for o in x
+            for v in bullet(o, lines(neatly(o, _root=0)))
+        )
+    else:
+        return repr(x)
 
 
-def nprint(x={}, _width=500, _cols=None, **kwargs):
-    """neatly print dictionary using `neatly` formatter"""
-    print(neatly(**x, _width=_width, _cols=_cols, **kwargs))
+def nprint(x={}, _cols=None, _width=10000, **kwargs):
+    """neatly print data structures of 'dict' and 'list' using `neatly`"""
+    print(neatly(x, _cols=_cols, _width=_width, **kwargs))
+
+
+def pbcopy(x):
+    import subprocess
+
+    subprocess.Popen("pbcopy", stdin=subprocess.PIPE).communicate(x.encode())
+
+
+def pbpaste():
+    import subprocess
+
+    return subprocess.Popen("pbpaste", stdout=subprocess.PIPE).stdout.read().decode()
 
 
 def timestamp(
