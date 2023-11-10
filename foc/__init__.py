@@ -444,16 +444,12 @@ def mml_(f):
 
 
 def v_(f):
-    """builds partial application of `filter` (left-associative)
-    f: predicate or filter funtion
-    """
+    """builds partial application of `filter` (left-associative)"""
     return f_(filter, f)
 
 
 def vv_(xs):
-    """builds partial application of `filter` (right-associative)
-    xs: iterable
-    """
+    """builds partial application of `filter` (right-associative)"""
     return ff_(filter, xs)
 
 
@@ -1019,7 +1015,9 @@ def choice(x, size=None, replace=False, p=None):
 
 
 class dmap(dict):
-    """dot-accessible dict(map)"""
+    """dot-accessible dict(map) using DWIM"""
+
+    __dwim__ = "- "
 
     def __init__(self, *args, **kwargs):
         super(dmap, self).__init__(*args, **kwargs)
@@ -1033,17 +1031,34 @@ class dmap(dict):
             return [self._g(x) for x in val]
         return val
 
+    def _k(self, key):
+        return (
+            next(
+                (
+                    sub
+                    for s in chars(self.__class__.__dwim__)
+                    if (sub := re.sub("_", s, key)) in self
+                ),
+                key,
+            )
+            if self.__class__.__dwim__
+            else key
+        )
+
     def __getattr__(self, key):
-        if key.startswith("__"):  # disabled for compat with ipython
+        if key.startswith("__"):  # disabled for stability
             return
         if key not in self and key != "_ipython_canary_method_should_not_exist_":
+            if (sub := self._k(key)) in self:
+                return self[sub]
             self[key] = dmap()
         return self[key]
 
     def __setattr__(self, key, val):
-        self[key] = self._g(val)
+        self[self._k(key)] = self._g(val)
 
     def __delattr__(self, key):
+        key = key if key in self else self._k(key)
         if key in self:
             del self[key]
 
