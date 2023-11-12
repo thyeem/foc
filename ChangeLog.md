@@ -84,3 +84,7 @@
 # 0.2.6
 - Imporved `dmap` and `nprint`
 - Added `pbcopy` and `pbpaste`
+
+# 0.2.7
+- Refactored to explicit form of functions
+- Fix `neatly` and `nprint`

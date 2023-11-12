@@ -624,7 +624,7 @@ profession  |  'one-in-a-million talent'
 ```
 
 
-### `raise` and `assert` with _expressions_: `error` and `guard`
+### raise and assert with _expressions_: `error` and `guard`
 
 Raise any kinds of exception in `lambda` expression as well.
 

@@ -434,13 +434,13 @@ def mm_(xs):
 
 
 def ml_(f):
-    """unpacks the result in list after `m_`"""
-    return cfd(list)(m_(f))
+    """the same as 'm_', but returns in 'list'"""
+    return cf_(list, m_(f))
 
 
-def mml_(f):
-    """unpacks the result in list after `mm_`"""
-    return cfd(list)(mm_(f))
+def mml_(xs):
+    """the same as 'mm_', but returns in 'list'"""
+    return cf_(list, mm_(xs))
 
 
 def v_(f):
@@ -454,33 +454,43 @@ def vv_(xs):
 
 
 def vl_(f):
-    """unpacks the result in list after `v_`"""
-    return cfd(list)(v_(f))
+    """the same as 'v_', but returns in 'list'"""
+    return cf_(list, v_(f))
 
 
-def vvl_(f):
-    """unpacks the result in list after `vv_`"""
-    return cfd(list)(vv_(f))
+def vvl_(xs):
+    """the same as 'vv_', but returns in 'list'"""
+    return cf_(list, vv_(xs))
 
 
-mapl = cfd(list)(map)
-mapl.__doc__ = "unpacks the result in list after `map`"
+@cfd(list)
+def mapl(*args, **kwargs):
+    """the same as 'map', but returns in 'list'"""
+    return map(*args, **kwargs)
 
 
-filterl = cfd(list)(filter)
-filterl.__doc__ = "unpacks the result in list after `filter`"
+@cfd(list)
+def filterl(*args, **kwargs):
+    """the same as 'filter', but returns in 'list'"""
+    return filter(*args, **kwargs)
 
 
-zipl = cfd(list)(zip)
-zipl.__doc__ = "unpacks the result in list after `filter`"
+@cfd(list)
+def zipl(*args, **kwargs):
+    """the same as 'zip', but returns in 'list'"""
+    return zip(*args, **kwargs)
 
 
-rangel = cfd(list)(range)
-rangel.__doc__ = "unpacks the result in list after `range`"
+@cfd(list)
+def rangel(*args, **kwargs):
+    """the same as 'range', but returns in 'list'"""
+    return range(*args, **kwargs)
 
 
-enumeratel = cfd(list)(enumerate)
-enumeratel.__doc__ = "unpacks the result in list after `enumerate`"
+@cfd(list)
+def enumeratel(*args, **kwargs):
+    """the same as 'enumerate', but returns in 'list'"""
+    return enumerate(*args, **kwargs)
 
 
 def reverse(x):
@@ -488,16 +498,20 @@ def reverse(x):
     return list(x)[::-1]
 
 
-# "for clarity of function names"
+# for clarity
 sort = sorted
 
 
-takewhilel = cfd(list)(takewhile)
-takewhilel.__doc__ = "unpacks the result in list after `takewhile`"
+@cfd(list)
+def takewhilel(*args, **kwargs):
+    """the same as 'takewhile', but returns in 'list'"""
+    return takewhile(*args, **kwargs)
 
 
-dropwhilel = cfd(list)(dropwhile)
-dropwhilel.__doc__ = "unpacks the result in list after `dropwhile`"
+@cfd(list)
+def dropwhilel(*args, **kwargs):
+    """the same as 'dropwhile', but returns in 'list'"""
+    return dropwhile(*args, **kwargs)
 
 
 def _not(x):
@@ -532,20 +546,28 @@ def _t(*args):
     return args
 
 
-_l = cfd(list)(_t)
-_l.__doc__ = "functional form of list constructor"
+def _r(*args):
+    """construct tuple"""
+    """generate args in the reverse order of '_t'"""
+    return args[::-1]
 
 
-_s = cfd(set)(_t)
-_s.__doc__ = "functional form of set constructor"
+@cfd(list)
+def _l(*args):
+    """functional form of list constructor"""
+    return args
 
 
-_d = cfd(deque)(_t)
-_d.__doc__ = "functional form of deque constructor"
+@cfd(set)
+def _s(*args):
+    """functional form of set constructor"""
+    return args
 
 
-_r = cfd(lambda x: x[::-1])(_t)
-_r.__doc__ = "generate args in the reverse order of '_t'"
+@cfd(deque)
+def _d(*args):
+    """functional form of deque constructor"""
+    return args
 
 
 def bimap(f, g, x):
@@ -682,28 +704,38 @@ def combination(x, r, rep=False):
     return it.combinations_with_replacement(x, r) if rep else it.combinations(x, r)
 
 
-cartprod = f_(cprod, repeat=1)
-cartprod.__doc__ = "returns Cartesian product"
+def cartprod(*args, **kwargs):
+    "returns Cartesian product"
+    return f_(cprod, repeat=1)(*args, **kwargs)
 
 
-cartprodl = cfd(list)(cartprod)
-cartprodl.__doc__ = "unpacks the result in list after `cartprod`"
+@cfd(list)
+def cartprodl(*args, **kwargs):
+    """the same as 'cartprod', but returns in 'list'"""
+    return cartprod(*args, **kwargs)
 
 
-# concatenates all elements of iterables"
-concat = it.chain.from_iterable
+def concat(iterable):
+    """concatenates all elements of iterables"""
+    return it.chain.from_iterable(iterable)
 
 
-concatl = cfd(list)(concat)
-concatl.__doc__ = "unpacks the result in list after `concat`"
+@cfd(list)
+def concatl(iterable):
+    """the same as 'concat', but returns in 'list'"""
+    return concat(iterable)
 
 
-concatmap = cfd(concat)(map)
-concatmap.__doc__ = "map a function over the given iterable then concat it"
+@cfd(concat)
+def concatmap(*args, **kwargs):
+    """map a function over the given iterable then concat it"""
+    return map(*args, **kwargs)
 
 
-concatmapl = cfd(list)(concatmap)
-concatmapl.__doc__ = "unpacks the result in list after `concatmap`"
+@cfd(list, concat)
+def concatmapl(*args, **kwargs):
+    """the same as 'concatmap', but returns in 'list'"""
+    return map(*args, **kwargs)
 
 
 def intersperse(sep, x):
@@ -711,8 +743,10 @@ def intersperse(sep, x):
     return concatl(zip(repeat(sep), x))[1:]
 
 
-intercalate = cfd(concatl)(intersperse)
-intersperse.__doc__ = "inserts the given list between the lists then concat it"
+@cfd(concatl)
+def intercalate(sep, x):
+    """inserts the given list between the lists then concat it"""
+    return intersperse(sep, x)
 
 
 def flat(*args):
@@ -735,17 +769,28 @@ def flat(*args):
     return go(args)
 
 
-flatl = cfd(list)(flat)
-flatl.__doc__ = "flatten iterables into list"
+@cfd(list)
+def flatl(*args):
+    """the same as 'flat', but returns in 'list'"""
+    return flat(*args)
 
-flatt = cfd(tuple)(flat)
-flatt.__doc__ = "flatten iterables into tuple"
 
-flatd = cfd(deque)(flat)
-flatd.__doc__ = "flatten iterables into deque"
+@cfd(tuple)
+def flatt(*args):
+    """the same as 'flat', but returns in 'tuple'"""
+    return flat(*args)
 
-flats = cfd(set)(flat)
-flats.__doc__ = "flatten iterables into set"
+
+@cfd(set)
+def flats(*args):
+    """the same as 'flat', but returns in 'set'"""
+    return flat(*args)
+
+
+@cfd(deque)
+def flatd(*args):
+    """the same as 'flat', but returns in 'deque'"""
+    return flat(*args)
 
 
 # easy-to-use alias for lazy operation
@@ -1110,7 +1155,7 @@ def polling(f, sec, args=None, kwargs=None):
     return t
 
 
-def neatly(x={}, _cols=None, _width=10000, _root=True, **kwargs):
+def neatly(x={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
     """create neatly formatted string for data structure of 'dict' and 'list'"""
 
     def munch(x):
@@ -1149,24 +1194,26 @@ def neatly(x={}, _cols=None, _width=10000, _root=True, **kwargs):
             for a, o in d.items()
             for k, v in [
                 ("", b) if i else (a, b)
-                for i, b in enumerate(bullet(o, lines(neatly(o, _root=0))))
+                for i, b in enumerate(
+                    bullet(o, lines(neatly(o, _repr=_repr, _root=False)))
+                )
             ]
         )
     elif isinstance(x, list):
         if _root:
-            return neatly({"'": x}, _root=0)
+            return neatly({"'": x}, _repr=_repr, _root=False)
         return unlines(
             filine(v, _width, "", "   ")
             for o in x
-            for v in bullet(o, lines(neatly(o, _root=0)))
+            for v in bullet(o, lines(neatly(o, _repr=_repr, _root=False)))
         )
     else:
-        return repr(x)
+        return (repr if _repr else str)(x)
 
 
-def nprint(x={}, _cols=None, _width=10000, **kwargs):
+def nprint(x={}, _cols=None, _width=10000, _repr=True, **kwargs):
     """neatly print data structures of 'dict' and 'list' using `neatly`"""
-    print(neatly(x, _cols=_cols, _width=_width, **kwargs))
+    print(neatly(x, _cols=_cols, _width=_width, _repr=_repr, **kwargs))
 
 
 def pbcopy(x):
@@ -1222,4 +1269,4 @@ def flist(to_dict=False):
     if to_dict:
         return __sig__()
     else:
-        nprint(__sig__(), _cols=14)
+        nprint(__sig__(), _cols=14, _repr=False)
