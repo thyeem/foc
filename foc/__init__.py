@@ -5,6 +5,7 @@ import random as rd
 import re
 import sys
 import threading
+import time
 import zipfile
 from collections import deque
 from datetime import datetime, timedelta
@@ -162,6 +163,7 @@ __all__ = [
     "nprint",
     "pbcopy",
     "pbpaste",
+    "timer",
     "timestamp",
     "flist",
 ]
@@ -797,13 +799,14 @@ def flatd(*args):
 lazy = f_
 
 
-def force(x, *args, **kwargs):
+def force(f, *args, **kwargs):
     """forces the delayed-expression to be fully evaluated"""
-    return x(*args, **kwargs) if callable(x) else x
+    return f(*args, **kwargs) if callable(f) else f
 
 
-mforce = ml_(force)
-mforce.__doc__ = "map 'force' over iterables of delayed-evaluation"
+def mforce(iterables):
+    """map 'force' over iterables of delayed-evaluation"""
+    return ml_(force)(iterables)
 
 
 def reader(f=None, mode="r", zipf=False):
@@ -1228,6 +1231,19 @@ def pbpaste():
     return subprocess.Popen("pbpaste", stdout=subprocess.PIPE).stdout.read().decode()
 
 
+def timer(t, msg="", quiet=False):
+    guard(isinstance(t, (int, float)), f"Error, not a number: {t}")
+    guard(t > 0, "Error, must be given a positive number: {t}")
+    t = int(t)
+    fmt = f"0{len(str(t))}d"
+    while t >= 0:
+        if not quiet:
+            print(f"{msg}{t:{fmt}}", end="\r")
+        time.sleep(1)
+        t -= 1
+    sys.stdout.write("\033[K")
+
+
 def timestamp(
     origin=None,
     w=0,
@@ -1235,11 +1251,11 @@ def timestamp(
     h=0,
     m=0,
     s=0,
-    from_str=None,
-    to_str=False,
+    from_iso=None,
+    to_iso=False,
 ):
-    if from_str:
-        t = datetime.strptime(from_str, "%Y-%m-%dT%H:%M:%S.%f%z").timestamp()
+    if from_iso:
+        t = datetime.strptime(from_iso, "%Y-%m-%dT%H:%M:%S.%f%z").timestamp()
     else:
         dt = timedelta(
             weeks=w,
@@ -1252,7 +1268,7 @@ def timestamp(
             origin = datetime.utcnow().timestamp()
             t = origin + dt
 
-    return to_str and f"{datetime.fromtimestamp(t).isoformat()[:26]}Z" or t
+    return to_iso and f"{datetime.fromtimestamp(t).isoformat()[:26]}Z" or t
 
 
 def __sig__():

@@ -506,7 +506,7 @@ I needed more handy one that controls everything with only `glob` and `regex` pa
  ...
 ```
 ```python
-# regex patterns comes in
+# regex patterns come in
 >>> ls(".", r=True, grep=".py$")
 ```
 ```

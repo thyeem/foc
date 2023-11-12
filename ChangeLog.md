@@ -88,3 +88,6 @@
 # 0.2.7
 - Refactored to explicit form of functions
 - Fix `neatly` and `nprint`
+
+# 0.2.8
+- added `timer`

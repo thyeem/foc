@@ -24,11 +24,6 @@ def test_safe():
     assert f() is None
 
 
-def test_not():
-    assert _not(False)
-    assert not (_not(True))
-
-
 def test_id():
     assert id("francis") == "francis"
     assert id([1, 2]) == [1, 2]
@@ -140,7 +135,7 @@ def test_flip():
     assert fn(4, 3, 2, 1) == flip(fn)(1, 2, 3, 4)
 
 
-def test_ff_():
+def test_f_ff_():
     assert f_("+", 5)(2) == 7
     assert ff_("+", 5)(2) == 7
     assert f_("-", 5)(2) == 3
@@ -233,8 +228,16 @@ def test_second():
     assert second(f_("*", 7), (5, 7)) == (5, 49)
 
 
+def test_until():
+    assert until(f_("<", 100), f_("*", 2), 2) == 128
+
+
 def test_iterate():
     assert take(5, iterate(lambda x: x**2, 2)) == [2, 4, 16, 256, 65536]
+
+
+def test_apply():
+    assert apply(fn, 1, 2, 3, 4) == "1-2-3-4"
 
 
 def test_foldl():
@@ -367,12 +370,71 @@ def test_intercalate():
     ) == [1, 2, -55, 3, 4, -55, 5, 6]
 
 
+def test_not():
+    assert _not(False)
+    assert not (_not(True))
+
+
+def test_and():
+    assert _and(1, True)
+    assert not (_and("foc", False))
+    assert not (_and([], False))
+
+
+def test_or():
+    assert _or(1, True)
+    assert _or("foc", False)
+    assert not (_or([], False))
+
+
+def test_in():
+    assert _in("s", "sofia")
+    assert _in(3, range(5))
+    assert not _in("qux", "maria")
+
+
+def test_is():
+    assert _is("sofia", "sofia")
+    assert _is((0, 1, 2), (0, 1, 2))
+    assert not _is([0, 1, 2], rangel(3))
+
+
+def test_is_not():
+    assert not _is_not("sofia", "sofia")
+    assert not _is_not((0, 1, 2), (0, 1, 2))
+    assert _is_not([0, 1, 2], rangel(3))
+
+
+def test__t():
+    assert _t(0, 1, 2) == (0, 1, 2)
+
+
+def test__r():
+    assert _r(0, 1, 2) == (2, 1, 0)
+
+
+def test__l():
+    assert _l(0, 1, 2) == [0, 1, 2]
+
+
+def test__s():
+    assert _s(0, 1, 2) == {0, 1, 2}
+
+
+def test__d():
+    assert _d(0, 1, 2) == deque([0, 1, 2])
+
+
 def test_lazy():
-    assert not f_(pow, 2, 10) == 1024
+    assert not lazy(pow, 2, 10) == 1024
 
 
 def test_force():
-    assert force(f_(pow, 2, 10)) == 1024
+    assert force(lazy(pow, 2, 10)) == 1024
+
+
+def test_mforce():
+    assert mforce([lazy(pow, 2, 10), lazy(foldl, "-", 10, range(1, 5))]) == [1024, 0]
 
 
 def test_flatl(d):
