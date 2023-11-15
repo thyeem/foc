@@ -16,14 +16,18 @@ from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile, tee
 from shutil import rmtree
+from subprocess import PIPE, Popen
 from textwrap import fill
 
+__version__ = "0.2.9"
+
+
 __all__ = [
-    "safe",
     "id",
     "const",
     "seq",
     "void",
+    "safe",
     "fst",
     "snd",
     "nth",
@@ -159,17 +163,41 @@ __all__ = [
     "fn_args",
     "singleton",
     "polling",
+    "docfrom",
     "neatly",
     "nprint",
     "pbcopy",
     "pbpaste",
     "timer",
     "timestamp",
+    "taskbar",
     "flist",
 ]
 
 
+def id(x):
+    """identity function"""
+    return x
+
+
+def const(x):
+    """build an id function that returns a given 'x'"""
+    return lambda _: x
+
+
+def seq(_):
+    """return the id function"""
+    return id
+
+
+def void(*args, **kwargs):
+    """return 'None' after consuming the given arguments"""
+    return
+
+
 def safe(f):
+    """make a given function return 'None' instead of raising an exception"""
+
     @wraps(f)
     def wrapper(*args, **kwargs):
         try:
@@ -180,56 +208,48 @@ def safe(f):
     return wrapper
 
 
-def id(x):
-    return x
-
-
-def const(x):
-    return lambda _: x
-
-
-def seq(_):
-    return id
-
-
-def void(_):
-    return
-
-
 @safe
 def fst(x):
+    """get the first component of a given iterable"""
     return nth(1, x)
 
 
 @safe
 def snd(x):
+    """get the second component of a given iterable"""
     return nth(2, x)
 
 
 def nth(n, x):
+    """get the 'n'-th component of a given iterable 'x'"""
     return x[n - 1] if hasattr(x, "__getitem__") else next(islice(x, n - 1, None))
 
 
 def take(n, x):
+    """take 'n' items from a given iterable 'x'"""
     return [*islice(x, n)]
 
 
 def drop(n, x):
+    """return items of the iterable 'x' after skipping 'n' items"""
     return islice(x, n, None)
 
 
 @safe
 def head(x):
+    """extract the first element of a given iterable: the same as 'fst'"""
     return fst(x)
 
 
 @safe
 def tail(x):
+    """extract the elements after the 'head' of a given iterable"""
     return drop(1, x)
 
 
 @safe
 def init(x):
+    """return all the elements of an iterable except the 'last' one"""
     it = iter(x)
     o = next(it)
     for i in it:
@@ -239,6 +259,7 @@ def init(x):
 
 @safe
 def last(x):
+    """extract the last element of a given iterable"""
     return deque(x, maxlen=1)[0]
 
 
@@ -1158,6 +1179,20 @@ def polling(f, sec, args=None, kwargs=None):
     return t
 
 
+def docfrom(g, merge=False):
+    """copy the docstring from the source 'g' to the function 'f' decorated"""
+
+    def wrapper(f):
+        f.__doc__ = (
+            unlines([f.__doc__ if f.__doc__ else "", "", g.__doc__])
+            if merge
+            else g.__doc__
+        )
+        return f
+
+    return wrapper
+
+
 def neatly(x={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
     """create neatly formatted string for data structure of 'dict' and 'list'"""
 
@@ -1194,7 +1229,7 @@ def neatly(x={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
         _cols = _cols or max(map(len, d.keys()))
         return unlines(
             filine(v, _width, f"{k:>{_cols}}  ", f"{' ':>{_cols}}     ")
-            for a, o in d.items()
+            for a, o in sort(d.items())
             for k, v in [
                 ("", b) if i else (a, b)
                 for i, b in enumerate(
@@ -1214,28 +1249,24 @@ def neatly(x={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
         return (repr if _repr else str)(x)
 
 
-def nprint(x={}, _cols=None, _width=10000, _repr=True, **kwargs):
+def nprint(x={}, *, _cols=None, _width=10000, _repr=True, **kwargs):
     """neatly print data structures of 'dict' and 'list' using `neatly`"""
     print(neatly(x, _cols=_cols, _width=_width, _repr=_repr, **kwargs))
 
 
 def pbcopy(x):
-    import subprocess
-
-    subprocess.Popen("pbcopy", stdin=subprocess.PIPE).communicate(x.encode())
+    Popen("pbcopy", stdin=PIPE).communicate(x.encode())
 
 
 def pbpaste():
-    import subprocess
-
-    return subprocess.Popen("pbpaste", stdout=subprocess.PIPE).stdout.read().decode()
+    return Popen("pbpaste", stdout=PIPE).stdout.read().decode()
 
 
-def timer(t, msg="", quiet=False):
+def timer(t, msg="", /, quiet=False):
     guard(isinstance(t, (int, float)), f"Error, not a number: {t}")
     guard(t > 0, "Error, must be given a positive number: {t}")
     t = int(t)
-    fmt = f"0{len(str(t))}d"
+    fmt = f"{len(str(t))}d"
     while t >= 0:
         if not quiet:
             print(f"{msg}{t:{fmt}}", end="\r")
@@ -1244,16 +1275,7 @@ def timer(t, msg="", quiet=False):
     sys.stdout.write("\033[K")
 
 
-def timestamp(
-    origin=None,
-    w=0,
-    d=0,
-    h=0,
-    m=0,
-    s=0,
-    from_iso=None,
-    to_iso=False,
-):
+def timestamp(*, origin=None, w=0, d=0, h=0, m=0, s=0, from_iso=None, to_iso=False):
     if from_iso:
         t = datetime.strptime(from_iso, "%Y-%m-%dT%H:%M:%S.%f%z").timestamp()
     else:
@@ -1266,9 +1288,48 @@ def timestamp(
         ).total_seconds()
         if origin is None:
             origin = datetime.utcnow().timestamp()
-            t = origin + dt
+        t = origin + dt
 
     return to_iso and f"{datetime.fromtimestamp(t).isoformat()[:26]}Z" or t
+
+
+def taskbar(x=None, desc="working", start=0, *, barcolor="white", **kwargs):
+    """flexible tqdm-like progress bar relying on 'pip' package only"""
+    import pip._vendor.rich.progress as rp
+
+    class SpeedColumn(rp.ProgressColumn):
+        def render(self, task) -> rp.Text:
+            if task.speed is None:
+                return rp.Text("?", style="progress.data.speed")
+            return rp.Text(f"{task.speed:2.2f} it/s", style="progress.data.speed")
+
+    def track(tb, x):
+        with tb:
+            total = len(x) if float(op.length_hint(x)) else None
+            if start:
+                guard(total is not None, f"Error, not subscriptable: {x}")
+                x = [*x][start:]
+            task = tb.add_task(desc, completed=start, total=total)
+            yield from tb.track(x, task_id=task, total=total, description=desc)
+            tb._tasks.get(task).completed = total
+
+    tb = rp.Progress(
+        "[progress.description]{task.description}",
+        "",
+        rp.TaskProgressColumn(),
+        "",
+        rp.BarColumn(complete_style=barcolor, finished_style=barcolor),
+        "",
+        rp.MofNCompleteColumn(),
+        "",
+        rp.TimeElapsedColumn(),
+        "<",
+        rp.TimeRemainingColumn(),
+        "",
+        SpeedColumn(),
+        **kwargs,
+    )
+    return tb if x is None else track(tb, x)
 
 
 def __sig__():

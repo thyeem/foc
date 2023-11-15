@@ -90,4 +90,8 @@
 - Fix `neatly` and `nprint`
 
 # 0.2.8
-- added `timer`
+- Added `timer`
+
+# 0.2.9
+- Added `taskbar` and `docfrom`
+- Fixed `neatly`
