@@ -95,3 +95,6 @@
 # 0.2.9
 - Added `taskbar` and `docfrom`
 - Fixed `neatly`
+
+# 0.2.10
+- Fixed `taskbar`: support generators and fix bugs

@@ -19,7 +19,7 @@ from shutil import rmtree
 from subprocess import PIPE, Popen
 from textwrap import fill
 
-__version__ = "0.2.9"
+__version__ = "0.2.10"
 
 
 __all__ = [
@@ -833,7 +833,7 @@ def mforce(iterables):
 def reader(f=None, mode="r", zipf=False):
     """get ready to read stream from a file or stdin, then returns the handle"""
     if f is not None:
-        guard(exists(f, "f"), f"Error, not found such a file: {f}")
+        guard(exists(f, "f"), f"reader, not found such a file: {f}")
     return (
         sys.stdin
         if f is None
@@ -917,7 +917,7 @@ def ls(path=".", grep=None, i=False, r=False):
         if re.search(r"[\*\+\?\[]", path)
         else cf_(
             _l,
-            guard_(exists, f"Error, no such file or directory: {path}"),
+            guard_(exists, f"ls, no such file or directory: {path}"),
             normpath,
         )(path)
     )
@@ -1027,7 +1027,7 @@ def randint(x=None, high=None, size=None):
     """
 
     def rint(high=1 << 256, low=0):
-        guard(low < high, f"Error, low({low}) must be less than high({high})")
+        guard(low < high, f"randint, low({low}) must be less than high({high})")
         x = high - low
         return low + (bytes_to_int(randbytes((x.bit_length() + 7) // 8)) % x)
 
@@ -1056,11 +1056,11 @@ def choice(x, size=None, replace=False, p=None):
     def fromp(x, probs, e=1e-6):
         guard(
             len(x) == len(probs),
-            f"Error, not the same size: {len(x)}, {len(probs)}",
+            f"choice, not the same size: {len(x)}, {len(probs)}",
         )
         guard(
             1 - e < sum(probs) < 1 + e,
-            f"Error, sum of probs({sum(probs)}) != 1",
+            f"choice, sum of probs({sum(probs)}) != 1",
         )
         r = rand()
         for y, p in zip(x, scanl1(f_("+"), probs)):
@@ -1263,13 +1263,13 @@ def pbpaste():
 
 
 def timer(t, msg="", /, quiet=False):
-    guard(isinstance(t, (int, float)), f"Error, not a number: {t}")
-    guard(t > 0, "Error, must be given a positive number: {t}")
+    guard(isinstance(t, (int, float)), f"timer, not a number: {t}")
+    guard(t > 0, "timer, must be given a positive number: {t}")
     t = int(t)
     fmt = f"{len(str(t))}d"
     while t >= 0:
         if not quiet:
-            print(f"{msg}{t:{fmt}}", end="\r")
+            print(f"{msg}  {t:{fmt}}", end="\r")
         time.sleep(1)
         t -= 1
     sys.stdout.write("\033[K")
@@ -1293,7 +1293,7 @@ def timestamp(*, origin=None, w=0, d=0, h=0, m=0, s=0, from_iso=None, to_iso=Fal
     return to_iso and f"{datetime.fromtimestamp(t).isoformat()[:26]}Z" or t
 
 
-def taskbar(x=None, desc="working", start=0, *, barcolor="white", **kwargs):
+def taskbar(x=None, desc="working", *, start=0, total=None, barcolor="white", **kwargs):
     """flexible tqdm-like progress bar relying on 'pip' package only"""
     import pip._vendor.rich.progress as rp
 
@@ -1303,15 +1303,18 @@ def taskbar(x=None, desc="working", start=0, *, barcolor="white", **kwargs):
                 return rp.Text("?", style="progress.data.speed")
             return rp.Text(f"{task.speed:2.2f} it/s", style="progress.data.speed")
 
-    def track(tb, x):
+    def track(tb, x, start, total):
         with tb:
-            total = len(x) if float(op.length_hint(x)) else None
+            if total is None:
+                total = len(x) if float(op.length_hint(x)) else None
             if start:
-                guard(total is not None, f"Error, not subscriptable: {x}")
-                x = [*x][start:]
+                guard(total is not None, f"taskbar, not subscriptable: {x}")
+                start = total + start if start < 0 else start
+                x = islice(x, start, None)
             task = tb.add_task(desc, completed=start, total=total)
             yield from tb.track(x, task_id=task, total=total, description=desc)
-            tb._tasks.get(task).completed = total
+            if total:
+                tb._tasks.get(task).completed = total
 
     tb = rp.Progress(
         "[progress.description]{task.description}",
@@ -1329,7 +1332,7 @@ def taskbar(x=None, desc="working", start=0, *, barcolor="white", **kwargs):
         SpeedColumn(),
         **kwargs,
     )
-    return tb if x is None else track(tb, x)
+    return tb if x is None else track(tb, x, start, total)
 
 
 def __sig__():

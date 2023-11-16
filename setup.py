@@ -12,6 +12,7 @@ setuptools.setup(
     description="A collection of python functions for somebody's sanity",
     long_description=reader("README.md").read(),
     long_description_content_type="text/markdown",
+    license_files=("LICENSE",),
     install_requires=[],
     url="https://github.com/thyeem/foc",
     classifiers=[
