@@ -19,8 +19,7 @@ from shutil import rmtree
 from subprocess import PIPE, Popen
 from textwrap import fill
 
-__version__ = "0.2.10"
-
+__version__ = "0.2.12"
 
 __all__ = [
     "id",
@@ -270,18 +269,22 @@ def ilen(x):
 
 
 def pred(x):
+    """return the predecessor of a given value: it substracts 1"""
     return x - 1
 
 
 def succ(x):
+    """return the successor of a given value: it adds 1"""
     return x + 1
 
 
 def odd(x):
+    """check if the given number is odd"""
     return x % 2 == 1
 
 
 def even(x):
+    """check if the given number is even"""
     return x % 2 == 0
 
 
@@ -321,6 +324,7 @@ def elem(x, xs):
 
 
 def nub(x):
+    """removes duplicate elements from a given iterable"""
     return cf_(list, dict.fromkeys)(x)
 
 
@@ -905,42 +909,66 @@ def pwd():
     return os.getcwd()
 
 
-def ls(path=".", grep=None, i=False, r=False):
-    """list the given <path>'s contents of files and directories: 'ls -1 <path>'
-    - glob patterns (*,?,[) in <path> are allowed.
-    - if 'grep=<regex>' is given, it's similar to 'ls -1 <path> | grep <regex>'
-    - if i is set, it maks 'grep' case-insensitive (turns on grep's -i flag)
-    - if r is set, it behaves like 'find <path>', recursively listing <path>
+def ls(*paths, grep=None, i=False, r=False, f=False, d=False, g=False, _root=True):
+    """list directory contents: just like 'ls -a1'.
+
+    Note:
+      - allowed glob patterns (*,?,[) in <path..>
+      - given 'grep=<regex>', it behaves like 'ls -a1 <path..> | grep <regex>'
+      - if i is set, it makes 'grep' case-insensitive (-i flag in grep)
+      - if r is set, it behaves like 'find -s <path..>' (-R flag in ls)
+      - if f is set, it lists only files like 'find <path..> -type f'
+      - if d is set, it lists only directories like 'find <path..> -type d'
+      - if g is set, it returns a generator instead of a sorted list
     """
-    paths = (
-        glob(normpath(path))
-        if re.search(r"[\*\+\?\[]", path)
-        else cf_(
-            _l,
-            guard_(exists, f"ls, no such file or directory: {path}"),
-            normpath,
-        )(path)
-    )
-    fs = flat(
-        [f"{path}/{f}" for f in os.listdir(path)] if exists(path, "d") else path
-        for path in paths
-    )
-    finish = sort if grep is None else cf_(sort, globals()["grep"](grep, i=i))
-    return (
-        cf_(finish, flat)(
-            ls(f, grep=grep, i=i, r=r) if exists(f, "d") else f for f in fs
+    paths = paths or ["."]
+    typef = f and f ^ d
+    typed = d and f ^ d
+
+    def fd(x):
+        return (typef and exists(x, "f")) or (typed and exists(x, "d"))
+
+    def root(xs):
+        return flat(
+            glob(normpath(x))
+            if re.search(r"[\*\+\?\[]", x)
+            else cf_(
+                _l,
+                guard_(exists, f"ls, no such file or directory: {x}"),
+                normpath,
+            )(x)
+            for x in xs
         )
-        if r
-        else finish(fs)
+
+    def rflag(xs):
+        return flat(
+            (x, ls(x, grep=grep, i=i, r=r, f=f, d=d, g=g, _root=False))
+            if exists(x, "d")
+            else x
+            for x in xs
+        )
+
+    return cf_(
+        id if g else sort,  # return generator or sort by filepath
+        v_(fd) if typef ^ typed else id,  # filetype filter: -f or -d flag
+        globals()["grep"](grep, i=i) if grep else id,  # grep -i flag
+        rflag if r else id,  # recursively listing: -r flag
+    )(
+        flat(
+            [normpath(f"{x}/{o}") for o in (os.listdir(x))] if exists(x, "d") else x
+            for x in (root(paths) if _root else paths)
+        )
     )
 
 
 @safe
 def grep(regex, i=False):
+    """build a filter to select items matching 'regex' pattern from iterables"""
     return vl_(f_(re.search, regex, flags=re.IGNORECASE if i else 0))
 
 
 def normpath(path, abs=False):
+    """normalize the given filepath"""
     return cf_(
         os.path.abspath if abs else id,
         os.path.normpath,
@@ -949,6 +977,7 @@ def normpath(path, abs=False):
 
 
 def exists(path, kind=None):
+    """check if the given filepath (file or directory) is available"""
     path = normpath(path)
     if kind == "f":
         return os.path.isfile(path)
@@ -1350,3 +1379,6 @@ def flist(to_dict=False):
         return __sig__()
     else:
         nprint(__sig__(), _cols=14, _repr=False)
+
+
+sys.setrecursionlimit(5000)

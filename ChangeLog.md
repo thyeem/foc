@@ -7,7 +7,7 @@
 
 # 0.1.3
 - Added symbolic operators (the same notations as the python standard library)
-- Improved neatly formatter
+- Fix neatly formatter
 - Added a few of basic functions
 
 # 0.1.4
@@ -21,7 +21,7 @@
 # 0.1.6
 - Remove the unnecessary caching (possible memory leak)
 - Added `shuffle`
-- Improved `random_int`
+- Fix `random_int`
 
 # 0.1.7
 - Added `const`, `until`, and `apply`
@@ -45,18 +45,18 @@
 - Hotfix
 
 # 0.1.12
-- Improved `ls` by adding recursive-search and regex filter
+- Fix `ls` by adding recursive-search and regex filter
 - Added `reads` and `writes`
 - Removed `fread` and `fwrite`
 
 # 0.2.0
 - Added `uncurry`
 - Simplified lazy operation: `lazy` and `force`.
-- Improved `repeat` and `replicate` and they support callable object
+- Fix `repeat` and `replicate` and they support callable object
 - Imporved: `random_int`, `ls`, and `apply`
 
 # 0.2.1
-- Improved `ff_`
+- Fix `ff_`
 - Added `rand`, `randn`, renamed `randint`
 - Added a few of symbolic operators
 - Added functional contructors: `_t`, `_l`, `_s` and `_r`
@@ -98,3 +98,9 @@
 
 # 0.2.10
 - Fixed `taskbar`: support generators and fix bugs
+
+# 0.2.11
+- Leap version
+
+# 0.2.12
+- Fix `ls`

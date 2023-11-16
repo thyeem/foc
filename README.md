@@ -12,17 +12,17 @@ Functions from the `Python` standard library are great. But some notations are a
 
 - `foc` provides a collection of _higher-order functions_ and some (_pure_) helpful functions
 - `foc` respects the `Python` standard library. _Never reinvented the wheel_.
-- _Take a look at the examples below._
 
-## Use
+## How to use
 ```bash
 # install
 $ pip install -U foc
 
 # import
 >>> from foc import *
-```
 
+# Take a look at the examples below
+```
 > To list all available functions, call `flist()`.
 
 ## Ground rules
@@ -217,8 +217,7 @@ Compared to `Haskell`,
 
 Unpacking with `list(..)` or `[* .. ]` is sometimes very annoying. So often use `mapl` for low memory consuming tasks.
 
-> _Hereafter, function names that end in `l` indicate the result will be unpacked in a list._
->
+> _Hereafter, function names that end in `l` indicate the result will be unpacked in a list._  
 > See also, `filterl`, `zipl`, `rangel`, `enumeratel`, `reversel`, `flatl` ... and so on
 
 ```python
@@ -254,8 +253,7 @@ Unpacking with `list(..)` or `[* .. ]` is sometimes very annoying. So often use 
 The same as `map` (mapping functions over iterables) except for filtering iterables using predicate function.
 
 
-> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
->
+> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._  
 > The name of `v_` comes from the shape of 'funnel'.
 
 ```python
@@ -293,8 +291,6 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 ```
 
 ### Other higher-order functions
-> To see all available functions, use `flist()` to print to `stdout` or `usage = flist(True)`.
-
 ```python
 >>> bimap(f_("+", 3), f_("*", 7), (5, 7))       # bimap (3+) (7*) (5, 7)
 (8, 49)                                         # (3+5, 7*7)
@@ -363,12 +359,15 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 ```
 
 ### Lazy Evaluation: `lazy` and `force`
-To defers the evaluation of a function(or expression), just use `lazy`.
+- `lazy` defers the evaluation of a function(or expression) and returns the _deferred expression_.   
+- `force` forces the deferred-expression to be fully evaluated when needed.  
+it reminds `Haskell`'s `force x = deepseq x x`.
 
-In order to generate a lazy expression, use `lazy(function-name, *args, **kwargs)`
-
-`force` forces the deferred-expression to be fully evaluated when needed.
-> it reminds `Haskell`'s `force x = deepseq x x`.
+> `lazy(function-name, *args, **kwargs)`  
+>
+> `force(expr)`   
+>
+> `mforce([expr])`  
 
 ```python
 # strictly generate a random integer between [1, 10)
@@ -380,7 +379,7 @@ In order to generate a lazy expression, use `lazy(function-name, *args, **kwargs
 # evaluate it when it need
 >>> force(deferred)
 
-# the same as 'force(deferred)'
+# the same as above
 >>> deferred()
 ```
 
@@ -397,8 +396,7 @@ Are those evaluations with `lazy` really deferred?
 1.03 µs ± 2.68 ns per loop (mean ± std. dev. of 7 runs, 1,000,000 loops each
 ```
 
-When to use? Let me give an example.
-
+#### Example
 For given a function `randint(low, high)`, how can we generate a list of random integers?
 
 ```python
@@ -435,9 +433,9 @@ Not related to `lazy` operation, but you do the same thing with `uncurry`
 ```
 
 ### Normalize containers: `flat`
-`flat` flattens all kinds of iterables except for string-like object, _regardless of the number of arguments_.
+`flat` flattens all kinds of iterables except for _string-like object_ (`str`, `bytes`). 
 
-`flat(*args)`
+> `flat(*args)`
 ```python
 # Assume that we regenerate 'data' every time in the examples below
 >>> data = [1,2,[3,4,[[[5],6],7,{8},((9),10)],range(11,13)], (x for x in [13,14,15])]
@@ -461,65 +459,85 @@ deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 ```
 
 ### Handy File Tools: `ls` and `grep`
+Use `ls` and `grep` in the same way you use in your terminal every day.  
 
-`Path` from `pathlib` and `glob` are great and useful.
+#### Background
+`Path` from `pathlib` and `glob` are great and useful. But,
 
-But, personally I feel like it's still complicated and I'm not likely to use it. Using `os.path.expanduser("~")` is very painful every time and not intuitive at all.
+- _Not intuitive_: `os.path.expanduser("~")` every time?
+- _Non-automated filepath normalization_
+- _No flexible understanding_: not tolerable for `foc//__init__.py` (`/` typo)
+- _Not integrated_: listing (`os.listdir`), globbing (`glob.glob`) and selecting files (`filter`)
 
-They never understand `~/francis/foc` and are not tolerable `foc//__init__` (typo `/`).
+#### Usage
+> `ls(*paths, grep=REGEX, i=BOOL, r=BOOL, f=BOOL, d=BOOL, g=BOOL)`
+- support glob patterns `(*,?,[)` in `*paths`
+- if given `grep=REGEX`, it behaves like `ls -a1 *paths | grep REGEX`
+- if `i` is set, it makes `grep` case-insensitive (`-i` flag in `grep`)
+- if `r` is set, it behaves like `find -s *paths` (`-R` flag in `ls`)
+- if `f` is set, it lists only files like `find -s *paths -type f`
+- if `d` is set, it lists only directories like `find -s *paths -type d`
+- if `g` is set, it returns a _generator_ instead of a sorted list
 
-I needed more handy one that controls everything with only `glob` and `regex` patterns.
-
-`ls(path=PATH, grep=REGEX, i=BOOL, r=BOOL)`
+ 
 ```python
-# couldn't be simpler! expand "~" automatically
->>> ls("~")    # the same as `ls -1 ~`: returns a list of $HOME
+# couldn't be simpler! 
+>>> ls()       # the same as ls("."): get contents of the curruent dir
+
+# expands "~" automatically
+>>> ls("~")    # the same as `ls -a1 ~`: returns a list of $HOME
 
 # support glob patterns (*, ?, [)
 >>> ls("./*/*.py")
-```
-```
-['foc/__init__.py', 'tests/__init__.py', 'tests/test_foc.py']
+
+# with multiple filepaths
+>>> ls(FILE, DIR, ...)
 ```
 ```python
-# list up recursively, like "find .git"
->>> ls(".git", r=True)
+# list up recursively and filter hidden files out
+>>> ls(".git", r=True, grep="^[^\.]")
 ```
-```
-...
- '.git/hooks/update.sample',
- '.git/index',
- '.git/info/exclude',
- '.git/logs/HEAD',
- ...
+```python
+# only files in '.git' directory
+>>> ls(".git", r=True, f=True) 
+
+# only directories in '.git' directory
+>>> ls(".git", r=True, d=True) 
 ```
 ```python
 # search recursivley and matching a pattern with `grep`
->>> ls(".", r=True, i=True, grep=".PY")    # 'i=True' turns on case-insensitive (-i flag)
+>>> ls(".", r=True, i=True, grep=".Py")    # 'i=True' for case-insensitive grep pattern
 ```
 ```
-...
+[ ..
  '.pytest_cache/v/cache/stepwise',
  'foc/__init__.py',
  'foc/__pycache__/__init__.cpython-310.pyc',
  'tests/__init__.py',
- ...
+.. ]
 ```
 ```python
 # regex patterns come in
 >>> ls(".", r=True, grep=".py$")
 ```
 ```
-['./setup.py', 'foc/__init__.py', 'tests/__init__.py', 'tests/test_foc.py']
+['foc/__init__.py', 'setup.py', 'tests/__init__.py', 'tests/test_foc.py']
 ```
 ```python
 # that's it!
 >>> ls(".", r=True, grep="^(foc).*py$")
+
+# the same as above
+>>> ls("foc/*.py")
 ```
 ```
 ['foc/__init__.py']
 ```
-`grep(REGEX, i=BOOL)` yields a function: `[STRING] -> [STRING]`
+
+
+
+`grep` build a filter to select items matching `REGEX` pattern from _iterables_.
+> `grep(REGEX, i=BOOL)` 
 
 ```python
 # 'grep' builds filter with regex patterns
@@ -528,7 +546,8 @@ I needed more handy one that controls everything with only `glob` and `regex` pa
 ```
 ['foc/__init__.py']
 ```
-There are several fundamental functions prepared as well such as: `HOME`, `cd`, `pwd`, `mkdir`, `rmdir`, `exists`, `dirname`, `basename` and so on.
+See also: `HOME`, `cd`, `pwd`, `mkdir`, `rmdir`, `exists`, `dirname`, and `basename`.
+
 
 ### Neatify data structures: `neatly` and `nprint`
 `neatly` generates neatly formatted string of the complex data structures of `dict` and `list`.
@@ -654,7 +673,8 @@ _Documents will be updated_
 
 
 ### Real-world Example
-A causal self-attention of the `transformer` model based on `pytorch` can be described as follows. _Somebody_ insists that this helps to follow the process flow without distraction.
+A causal self-attention of the `transformer` model based on `pytorch` can be described as follows.  
+_Somebody_ insists that this helps to follow the process flow without distraction.
 
 ```python
     def forward(self, x):
