@@ -104,3 +104,8 @@
 
 # 0.2.12
 - Fix `ls`
+
+# 0.2.13
+- Add `thread` and `shell`
+- Fix `sym` and `polling`
+- Add doctest

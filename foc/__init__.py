@@ -4,7 +4,6 @@ import os
 import random as rd
 import re
 import sys
-import threading
 import time
 import zipfile
 from collections import deque
@@ -16,10 +15,11 @@ from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile, tee
 from shutil import rmtree
-from subprocess import PIPE, Popen
+from subprocess import DEVNULL, PIPE, STDOUT, Popen
 from textwrap import fill
+from threading import Thread, Timer
 
-__version__ = "0.2.12"
+__version__ = "0.2.13"
 
 __all__ = [
     "id",
@@ -37,6 +37,7 @@ __all__ = [
     "init",
     "last",
     "ilen",
+    "pair",
     "pred",
     "succ",
     "odd",
@@ -58,6 +59,7 @@ __all__ = [
     "islice",
     "product",
     "deque",
+    "sym",
     "flip",
     "f_",
     "ff_",
@@ -142,14 +144,16 @@ __all__ = [
     "HOME",
     "cd",
     "pwd",
-    "ls",
-    "grep",
     "normpath",
     "exists",
     "dirname",
     "basename",
     "mkdir",
     "rmdir",
+    "ls",
+    "grep",
+    "split",
+    "bytes_to_bin",
     "bytes_to_int",
     "int_to_bytes",
     "randbytes",
@@ -161,13 +165,15 @@ __all__ = [
     "dmap",
     "fn_args",
     "singleton",
+    "thread",
     "polling",
-    "docfrom",
-    "neatly",
-    "nprint",
+    "shell",
     "pbcopy",
     "pbpaste",
     "timer",
+    "docfrom",
+    "neatly",
+    "nprint",
     "timestamp",
     "taskbar",
     "flist",
@@ -175,27 +181,45 @@ __all__ = [
 
 
 def id(x):
-    """identity function"""
+    """identity function
+
+    >>> id("francis")
+    'francis'
+    """
     return x
 
 
 def const(x):
-    """build an id function that returns a given 'x'"""
+    """build an id function that returns a given 'x'
+
+    >>> const(5)("only-return-5-no-matther-what-comes-here")
+    5
+    """
     return lambda _: x
 
 
 def seq(_):
-    """return the id function"""
+    """return the id function after consuming the given argument
+
+    >>> seq("no-matter-what-is-here-returns-the-following-arg")(5)
+    5
+    """
     return id
 
 
-def void(*args, **kwargs):
-    """return 'None' after consuming the given arguments"""
+def void(_):
+    """return 'None' after consuming the given argument
+
+    >>> void(randbytes(256))
+    """
     return
 
 
 def safe(f):
-    """make a given function return 'None' instead of raising an exception"""
+    """make a given function return 'None' instead of raising an exception
+
+    >>> safe(error)("never-errors")    # no error, returns None
+    """
 
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -209,46 +233,78 @@ def safe(f):
 
 @safe
 def fst(x):
-    """get the first component of a given iterable"""
+    """get the first component of a given iterable
+
+    >>> fst(["sofia", "maria", "claire"])
+    'sofia'
+    """
     return nth(1, x)
 
 
 @safe
 def snd(x):
-    """get the second component of a given iterable"""
+    """get the second component of a given iterable
+
+    >>> snd(("sofia", "maria", "claire"))
+    'maria'
+    """
     return nth(2, x)
 
 
 def nth(n, x):
-    """get the 'n'-th component of a given iterable 'x'"""
+    """get the 'n'-th component of a given iterable 'x'
+
+    >>> nth(3, ["sofia", "maria", "claire"])
+    'claire'
+    """
     return x[n - 1] if hasattr(x, "__getitem__") else next(islice(x, n - 1, None))
 
 
 def take(n, x):
-    """take 'n' items from a given iterable 'x'"""
+    """take 'n' items from a given iterable 'x'
+
+    >>> take(3, range(5, 10))
+    [5, 6, 7]
+    """
     return [*islice(x, n)]
 
 
 def drop(n, x):
-    """return items of the iterable 'x' after skipping 'n' items"""
+    """return items of the iterable 'x' after skipping 'n' items
+
+    >>> list(drop(3, "github"))
+    ['h', 'u', 'b']
+    """
     return islice(x, n, None)
 
 
 @safe
 def head(x):
-    """extract the first element of a given iterable: the same as 'fst'"""
+    """extract the first element of a given iterable: the same as 'fst'
+
+    >>> head(range(1,5))
+    1
+    """
     return fst(x)
 
 
 @safe
 def tail(x):
-    """extract the elements after the 'head' of a given iterable"""
+    """extract the elements after the 'head' of a given iterable
+
+    >>> list(tail(range(1,5)))
+    [2, 3, 4]
+    """
     return drop(1, x)
 
 
 @safe
 def init(x):
-    """return all the elements of an iterable except the 'last' one"""
+    """return all the elements of an iterable except the 'last' one
+
+    >>> list(init(range(1,5)))
+    [1, 2, 3]
+    """
     it = iter(x)
     o = next(it)
     for i in it:
@@ -258,85 +314,167 @@ def init(x):
 
 @safe
 def last(x):
-    """extract the last element of a given iterable"""
+    """extract the last element of a given iterable
+
+    >>> last(range(1,5))
+    4
+    """
     return deque(x, maxlen=1)[0]
 
 
 def ilen(x):
+    """get the length of a given iterator
+
+    >>> ilen((x for x in range(100)))
+    100
+    """
     c = count()
     deque(zip(x, c), maxlen=0)
     return next(c)
 
 
+def pair(a, b):
+    """make the given two arguments a tuple pair
+
+    >>> pair("sofia", "maria")
+    ('sofia', 'maria')
+    """
+    return (a, b)
+
+
 def pred(x):
-    """return the predecessor of a given value: it substracts 1"""
+    """return the predecessor of a given value: it substracts 1
+
+    >>> pred(3)
+    2
+    """
     return x - 1
 
 
 def succ(x):
-    """return the successor of a given value: it adds 1"""
+    """return the successor of a given value: it adds 1
+
+    >>> succ(3)
+    4
+    """
     return x + 1
 
 
 def odd(x):
-    """check if the given number is odd"""
+    """check if the given number is odd
+
+    >>> odd(3)
+    True
+    """
     return x % 2 == 1
 
 
 def even(x):
-    """check if the given number is even"""
+    """check if the given number is even
+
+    >>> even(3)
+    False
+    """
     return x % 2 == 0
 
 
 def null(x):
-    """check if a given collection is empty"""
+    """check if a given collection is empty
+
+    >>> null([]) == null(()) == null({}) == null("")
+    True
+    """
     return len(x) == 0
 
 
 def chars(x):
-    """split string 'x' into `chars`: the same as (:[]) <$> x"""
+    """split string 'x' into `chars`: the same as (:[]) <$> x
+
+    >>> chars("sofimarie")
+    ['s', 'o', 'f', 'i', 'm', 'a', 'r', 'i', 'e']
+    """
     return list(x)
 
 
 def unchars(x):
-    """inverse operation of 'chars': the same as 'concat'"""
+    """inverse operation of 'chars': the same as 'concat'
+
+    >>> unchars(['s', 'o', 'f', 'i', 'm', 'a', 'r', 'i', 'e'])
+    'sofimarie'
+    """
     return "".join(x)
 
 
 def words(x):
+    """
+
+    >>> words("fun on functions")
+    ['fun', 'on', 'functions']
+    """
     return x.split()
 
 
 def unwords(x):
+    """
+
+    >>> unwords(['fun', 'on', 'functions'])
+    'fun on functions'
+    """
     return " ".join(x)
 
 
 def lines(x):
+    """
+
+    >>> lines("fun\\non\\nfunctions")
+    ['fun', 'on', 'functions']
+    """
     return x.splitlines()
 
 
 def unlines(x):
+    """
+
+    >>> unlines(['fun', 'on', 'functions'])
+    'fun\\non\\nfunctions'
+    """
     return "\n".join(x)
 
 
 def elem(x, xs):
+    """
+
+    >>> "fun" in "functions"
+    True
+    """
     return x in xs
 
 
 def nub(x):
-    """removes duplicate elements from a given iterable"""
+    """removes duplicate elements from a given iterable
+
+    >>> nub("3333-13-1111111")
+    ['3', '-', '1']
+    """
     return cf_(list, dict.fromkeys)(x)
 
 
 def repeat(x, nf=True):
     """create an infinite list with x value of every element
     if nf (NF, Normal Form) is set, callable objects will be evaluated.
+
+    >>> take(3, repeat(5))
+    [5, 5, 5]
     """
     return (x() if nf and callable(x) else x for _ in count())
 
 
 def replicate(n, x, nf=True):
-    """get a list of length `n` from an infinite list with `x` values"""
+    """get a list of length `n` from an infinite list with `x` values
+
+    >>> replicate(3, 5)
+    [5, 5, 5]
+    """
     return take(n, repeat(x, nf=nf))
 
 
@@ -349,6 +487,9 @@ def flip(f):
     """flip(f) takes its arguments in the reverse order of f:
     `f :: a -> b -> ... -> c -> d -> o`
     `flip(f) :: d -> c -> ... -> b -> a -> o`
+
+    >>> flip(pow)(7, 3)
+    2187
     """
 
     @wraps(f)
@@ -361,30 +502,39 @@ def flip(f):
 def f_(f, *args, **kwargs):
     """build left-associative partial application,
     where the given function's arguments partially evaluation from the left
+
+    >>> f_("-", 5)(2)
+    3
     """
-    return partial(o_(f), *args, **kwargs)
+    return partial(sym(f), *args, **kwargs)
 
 
 def ff_(f, *args, **kwargs):
     """build left-associative partial application,
     where the given function's arguments partially evaluation from the right
+
+    >>> ff_("-", 5)(2)
+    -3
     """
-    return f_(flip(o_(f)), *args, **kwargs)
+    return f_(flip(sym(f)), *args, **kwargs)
 
 
-def curry(f, n=None):
-    """build curried function that takes arguments from the left.
+def curry(f, *, _n=None):
+    """build curried function that takes the arguments from the left.
     The currying result is simply a nested unary function.
 
     This function takes positional arguments only when currying.
     Use partial application `f_` before currying if you need to change kwargs
+
+    >>> curry("-")(5)(2)
+    3
     """
-    f = o_(f)
-    n = n if n else len(fn_args(f))
+    f = sym(f)
+    _n = _n if _n else len(fn_args(f))
 
     @wraps(f)
     def wrapper(x):
-        return f(x) if n <= 1 else curry(f_(f, x), n=pred(n))
+        return f(x) if _n <= 1 else curry(f_(f, x), _n=pred(_n))
 
     return wrapper
 
@@ -394,16 +544,23 @@ c_ = curry
 
 
 def cc_(f):
-    """build curried function that takes arguments from the right"""
-    return c_(flip(o_(f)))
+    """build curried function that takes the arguments from the right
+
+    >>> cc_("-")(5)(2)
+    -3
+    """
+    return c_(flip(sym(f)))
 
 
 def uncurry(f):
     """convert a uncurried normal function to a unary function of a tuple args.
     This is not exact reverse operation of `curry`. Here `uncurry` simply does:
-    `uncurry :: (a -> ... -> b -> o) -> (a, ..., b, o) -> o`
+    `uncurry :: (a -> ... -> b -> o) -> (a, ..., b) -> o`
+
+    >>> uncurry(pow)((2, 10))
+    1024
     """
-    f = o_(f)
+    f = sym(f)
 
     @wraps(f)
     def wrapper(x):
@@ -417,7 +574,14 @@ u_ = uncurry
 
 
 def cf_(*fs, rep=None):
-    """compose a given list of functions then return the composed function"""
+    """compose a given list of functions then return the composed function
+
+    >>> cf_(f_("*", 7), f_("+", 3))(5)
+    56
+
+    >>> cf_(ff_("[]", "sofia"), dict)([("sofia", "piano"), ("maria", "violin")])
+    'piano'
+    """
 
     def compose(f, g):
         return lambda x: f(g(x))
@@ -428,6 +592,12 @@ def cf_(*fs, rep=None):
 def cfd(*fs, rep=None):
     """decorator using the composition of functions:
     decorate a function using the composition of the given functions.
+
+    >>> cfd(set, list, tuple)(range)(5)
+    {0, 1, 2, 3, 4}
+
+    >>> cfd(ff_("[]", "maria"))(dict)([("sofia", "piano"), ("maria", "violin")])
+    'violin'
     """
 
     def cfdeco(f):
@@ -446,6 +616,9 @@ def m_(f):
 
     (f <$>) == map(f,)  == f_(map, f) == m_(f)
     (<$> xs) == map(,xs) == f_(flip(map), xs)
+
+    >>> list(m_(abs)(range(-2, 3)))
+    [2, 1, 0, 1, 2]
     """
     return f_(map, f)
 
@@ -456,43 +629,74 @@ def mm_(xs):
 
     (f <$>) == map(f,)  == f_(map, f) == m_(f)
     (<$> xs) == map(,xs) == f_(flip(map), xs)
+
+    >>> list(mm_(range(-2, 3))(abs))
+    [2, 1, 0, 1, 2]
     """
     return ff_(map, xs)
 
 
 def ml_(f):
-    """the same as 'm_', but returns in 'list'"""
+    """the same as 'm_', but returns in 'list'
+
+    >>> ml_(f_("*", 8))(range(1, 6))
+    [8, 16, 24, 32, 40]
+    """
     return cf_(list, m_(f))
 
 
 def mml_(xs):
-    """the same as 'mm_', but returns in 'list'"""
+    """the same as 'mm_', but returns in 'list'
+
+    >>> mml_(range(1, 6))(f_("*", 8))
+    [8, 16, 24, 32, 40]
+    """
     return cf_(list, mm_(xs))
 
 
 def v_(f):
-    """builds partial application of `filter` (left-associative)"""
+    """builds partial application of `filter` (left-associative)
+
+    >>> list(v_(f_("==", "f"))("fun-on-functions"))
+    ['f', 'f']
+    """
     return f_(filter, f)
 
 
 def vv_(xs):
-    """builds partial application of `filter` (right-associative)"""
+    """builds partial application of `filter` (right-associative)
+
+    >>> list(vv_("fun-on-functions")(f_("==", "f")))
+    ['f', 'f']
+    """
     return ff_(filter, xs)
 
 
 def vl_(f):
-    """the same as 'v_', but returns in 'list'"""
+    """the same as 'v_', but returns in 'list'
+
+    >>> vl_(even)(range(10))
+    [0, 2, 4, 6, 8]
+    """
     return cf_(list, v_(f))
 
 
 def vvl_(xs):
-    """the same as 'vv_', but returns in 'list'"""
+    """the same as 'vv_', but returns in 'list'
+
+    >>> vvl_(range(10))(odd)
+    [1, 3, 5, 7, 9]
+    """
     return cf_(list, vv_(xs))
 
 
 @cfd(list)
 def mapl(*args, **kwargs):
-    """the same as 'map', but returns in 'list'"""
+    """the same as 'map', but returns in 'list'
+
+    >>> mapl(f_("*", 8), range(1, 6))
+    [8, 16, 24, 32, 40]
+    """
     return map(*args, **kwargs)
 
 
@@ -531,13 +735,21 @@ sort = sorted
 
 @cfd(list)
 def takewhilel(*args, **kwargs):
-    """the same as 'takewhile', but returns in 'list'"""
+    """the same as 'takewhile', but returns in 'list'
+
+    >>> takewhilel(even, [2, 4, 6, 1, 3, 5])
+    [2, 4, 6]
+    """
     return takewhile(*args, **kwargs)
 
 
 @cfd(list)
 def dropwhilel(*args, **kwargs):
-    """the same as 'dropwhile', but returns in 'list'"""
+    """the same as 'dropwhile', but returns in 'list'
+
+    >>> dropwhilel(even, [2, 4, 6, 1, 3, 5])
+    [1, 3, 5]
+    """
     return dropwhile(*args, **kwargs)
 
 
@@ -600,19 +812,28 @@ def _d(*args):
 def bimap(f, g, x):
     """map over both 'first' and 'second' arguments at the same time
     bimap(f, g) == first(f) . second(g)
+
+    >>> bimap(f_("+", 3), f_("*", 7), (5, 7))
+    (8, 49)
     """
     return f(fst(x)), g(snd(x))
 
 
 def first(f, x):
-    """map covariantly over the 'first' argument"""
-    # return f(fst(x)), snd(x)
+    """map covariantly over the 'first' argument
+
+    >>> first(f_("+", 3), (5, 7))
+    (8, 7)
+    """
     return bimap(f, id, x)
 
 
 def second(g, x):
-    """map covariantly over the 'second' argument"""
-    # return fst(x), g(snd(x))
+    """map covariantly over the 'second' argument
+
+    >>> second(f_("*", 7), (5, 7))
+    (5, 49)
+    """
     return bimap(id, g, x)
 
 
@@ -623,60 +844,101 @@ def until(p, f, x):
 
 
 def iterate(f, x):
+    """
+
+    >>> take(5, iterate(lambda x: x**2, 2))
+    [2, 4, 16, 256, 65536]
+    """
     while True:
         yield x
         x = f(x)
 
 
 def apply(f, *args, **kwargs):
-    return o_(f)(*args, **kwargs)
+    """call a given function with the given arguments
+
+    >>> apply(str.split, "go get some coffee")
+    ['go', 'get', 'some', 'coffee']
+    """
+    return sym(f)(*args, **kwargs)
 
 
 def foldl(f, initial, xs):
-    """left-associative fold of an iterable. The same as 'foldl' in Haskell"""
-    return reduce(o_(f), xs, initial)
+    """left-associative fold of an iterable. The same as 'foldl' in Haskell
+
+    >>> foldl("-", 10, range(1, 5))
+    0
+    """
+    return reduce(sym(f), xs, initial)
 
 
 def foldl1(f, xs):
-    """`foldl` without initial value. The same as 'foldl1' in Haskell"""
-    return reduce(o_(f), xs)
+    """`foldl` without initial value. The same as 'foldl1' in Haskell
+
+    >>> foldl1("-", range(1, 5))
+    -8
+    """
+    return reduce(sym(f), xs)
 
 
 def foldr(f, inital, xs):
-    """right-associative fold of an iterable. The same as 'foldr' in Haskell"""
-    return reduce(flip(o_(f)), xs[::-1], inital)
+    """right-associative fold of an iterable. The same as 'foldr' in Haskell
+
+    >>> foldr("-", 10, range(1, 5))
+    8
+    """
+    return reduce(flip(sym(f)), xs[::-1], inital)
 
 
 def foldr1(f, xs):
-    """`foldr` without initial value. The same as 'foldr1' in Haskell"""
-    return reduce(flip(o_(f)), xs[::-1])
+    """`foldr` without initial value. The same as 'foldr1' in Haskell
+
+    >>> foldr1("-", range(1, 5))
+    -2
+    """
+    return reduce(flip(sym(f)), xs[::-1])
 
 
 @cfd(list)
 def scanl(f, initial, xs):
     """returns a list of successive reduced values from the left
-    The same as `scanl` in Haskell"""
-    return accumulate(xs, o_(f), initial=initial)
+    The same as `scanl` in Haskell
+
+    >>> scanl("-", 10, range(1, 5))
+    [10, 9, 7, 4, 0]
+    """
+    return accumulate(xs, sym(f), initial=initial)
 
 
 @cfd(list)
 def scanl1(f, xs):
-    """`scanl` without starting value. The same as 'scanl1' in Haskell"""
-    return accumulate(xs, o_(f))
+    """`scanl` without starting value. The same as 'scanl1' in Haskell
+
+    >>> scanl1("-", range(1, 5))
+    [1, -1, -4, -8]
+    """
+    return accumulate(xs, sym(f))
 
 
 @cfd(reverse)
 def scanr(f, initial, xs):
     """returns a list of successive reduced values from the right
     The same as `scanr` in Haskell
+
+    >>> scanr("-", 10, range(1, 5))
+    [8, -7, 9, -6, 10]
     """
-    return accumulate(xs[::-1], flip(o_(f)), initial=initial)
+    return accumulate(xs[::-1], flip(sym(f)), initial=initial)
 
 
 @cfd(reverse)
 def scanr1(f, xs):
-    """`scanr` without starting value. The same as 'scanr1' in Haskell"""
-    return accumulate(xs[::-1], flip(o_(f)))
+    """`scanr` without starting value. The same as 'scanr1' in Haskell
+
+    >>> scanr1("-", range(1, 5))
+    [-2, 3, -1, 4]
+    """
+    return accumulate(xs[::-1], flip(sym(f)))
 
 
 def capture(p, string):
@@ -689,9 +951,13 @@ def captures(p, string):
     return re.compile(p).findall(string)
 
 
-def o_(f):
-    """get a function from symbolic operators"""
-    return {
+def sym(f=None):
+    """get binary functions from the symbolic operators
+
+    >>> sym("*")(5, 5) - sym("**")(5, 2)
+    0
+    """
+    ops = {
         "+": op.add,
         "-": op.sub,
         "*": op.mul,
@@ -711,16 +977,18 @@ def o_(f):
         ">=": op.ge,
         "<": op.lt,
         "<=": op.le,
-        "!!": op.getitem,
-        ",": lambda a, b: (a, b),
-        "..": rangel,
-        "[]": _l,
-        "()": _t,
-        "{}": _s,
-        "-<": _in,
-        "~<": capture,
-        "~~<": captures,
-    }.get(f, f)
+        "[]": op.getitem,
+        ",": pair,
+        ".": getattr,
+        "..": range,
+        "~": capture,
+        "~~": captures,
+    }
+    return (
+        ops.get(f, f)
+        if f is not None
+        else nprint({k: v.__name__ for k, v in ops.items()}, _cols=14, _repr=False)
+    )
 
 
 def permutation(x, r, rep=False):
@@ -749,7 +1017,11 @@ def concat(iterable):
 
 @cfd(list)
 def concatl(iterable):
-    """the same as 'concat', but returns in 'list'"""
+    """the same as 'concat', but returns in 'list'
+
+    >>> concatl(["sofia", "maria"])
+    ['s', 'o', 'f', 'i', 'a', 'm', 'a', 'r', 'i', 'a']
+    """
     return concat(iterable)
 
 
@@ -761,7 +1033,11 @@ def concatmap(*args, **kwargs):
 
 @cfd(list, concat)
 def concatmapl(*args, **kwargs):
-    """the same as 'concatmap', but returns in 'list'"""
+    """the same as 'concatmap', but returns in 'list'
+
+    >>> concatmapl(str.upper, ["sofia", "maria"])
+    ['S', 'O', 'F', 'I', 'A', 'M', 'A', 'R', 'I', 'A']
+    """
     return map(*args, **kwargs)
 
 
@@ -798,25 +1074,41 @@ def flat(*args):
 
 @cfd(list)
 def flatl(*args):
-    """the same as 'flat', but returns in 'list'"""
+    """the same as 'flat', but returns in 'list'
+
+    >>> flatl([1, [(2,), [[{3}, range(4,6)]], (x for x in range(7,9))]])
+    [1, 2, 3, 4, 5, 7, 8]
+    """
     return flat(*args)
 
 
 @cfd(tuple)
 def flatt(*args):
-    """the same as 'flat', but returns in 'tuple'"""
+    """the same as 'flat', but returns in 'tuple'
+
+    >>> flatt([1, [(2,), [[{3}, range(4,6)]], (x for x in range(7,9))]])
+    (1, 2, 3, 4, 5, 7, 8)
+    """
     return flat(*args)
 
 
 @cfd(set)
 def flats(*args):
-    """the same as 'flat', but returns in 'set'"""
+    """the same as 'flat', but returns in 'set'
+
+    >>> flats([1, [(2,), [[{3}, range(4,6)]], (x for x in range(7,9))]])
+    {1, 2, 3, 4, 5, 7, 8}
+    """
     return flat(*args)
 
 
 @cfd(deque)
 def flatd(*args):
-    """the same as 'flat', but returns in 'deque'"""
+    """the same as 'flat', but returns in 'deque'
+
+    >>> flatd([1, [(2,), [[{3}, range(4,6)]], (x for x in range(7,9))]])
+    deque([1, 2, 3, 4, 5, 7, 8])
+    """
     return flat(*args)
 
 
@@ -909,64 +1201,6 @@ def pwd():
     return os.getcwd()
 
 
-def ls(*paths, grep=None, i=False, r=False, f=False, d=False, g=False, _root=True):
-    """list directory contents: just like 'ls -a1'.
-
-    Note:
-      - allowed glob patterns (*,?,[) in <path..>
-      - given 'grep=<regex>', it behaves like 'ls -a1 <path..> | grep <regex>'
-      - if i is set, it makes 'grep' case-insensitive (-i flag in grep)
-      - if r is set, it behaves like 'find -s <path..>' (-R flag in ls)
-      - if f is set, it lists only files like 'find <path..> -type f'
-      - if d is set, it lists only directories like 'find <path..> -type d'
-      - if g is set, it returns a generator instead of a sorted list
-    """
-    paths = paths or ["."]
-    typef = f and f ^ d
-    typed = d and f ^ d
-
-    def fd(x):
-        return (typef and exists(x, "f")) or (typed and exists(x, "d"))
-
-    def root(xs):
-        return flat(
-            glob(normpath(x))
-            if re.search(r"[\*\+\?\[]", x)
-            else cf_(
-                _l,
-                guard_(exists, f"ls, no such file or directory: {x}"),
-                normpath,
-            )(x)
-            for x in xs
-        )
-
-    def rflag(xs):
-        return flat(
-            (x, ls(x, grep=grep, i=i, r=r, f=f, d=d, g=g, _root=False))
-            if exists(x, "d")
-            else x
-            for x in xs
-        )
-
-    return cf_(
-        id if g else sort,  # return generator or sort by filepath
-        v_(fd) if typef ^ typed else id,  # filetype filter: -f or -d flag
-        globals()["grep"](grep, i=i) if grep else id,  # grep -i flag
-        rflag if r else id,  # recursively listing: -r flag
-    )(
-        flat(
-            [normpath(f"{x}/{o}") for o in (os.listdir(x))] if exists(x, "d") else x
-            for x in (root(paths) if _root else paths)
-        )
-    )
-
-
-@safe
-def grep(regex, i=False):
-    """build a filter to select items matching 'regex' pattern from iterables"""
-    return vl_(f_(re.search, regex, flags=re.IGNORECASE if i else 0))
-
-
 def normpath(path, abs=False):
     """normalize the given filepath"""
     return cf_(
@@ -1013,6 +1247,88 @@ def rmdir(path, rm_rf=False):
         rmtree(path)
     else:
         os.removedirs(path)
+
+
+def ls(*paths, grep=None, i=False, r=False, f=False, d=False, g=False, _root=True):
+    """list directory contents: just like 'ls -a1'.
+
+    Note:
+      - allowed glob patterns (*,?,[) in <path..>
+      - given 'grep=<regex>', it behaves like 'ls -a1 <path..> | grep <regex>'
+      - if i is set, it makes 'grep' case-insensitive (-i flag in grep)
+      - if r is set, it behaves like 'find -s <path..>' (-R flag in ls)
+      - if f is set, it lists only files like 'find <path..> -type f'
+      - if d is set, it lists only directories like 'find <path..> -type d'
+      - if g is set, it returns a generator instead of a sorted list
+    """
+    paths = paths or ["."]
+    typef = f and f ^ d
+    typed = d and f ^ d
+
+    def fd(x):
+        return (typef and exists(x, "f")) or (typed and exists(x, "d"))
+
+    def root(xs):
+        return flat(
+            glob(normpath(x))
+            if re.search(r"[\*\+\?\[]", x)
+            else cf_(
+                guard_(exists, f"ls, no such file or directory: {x}"),
+                normpath,
+            )(x)
+            for x in xs
+        )
+
+    def rflag(xs):
+        return flat(
+            (x, ls(x, grep=grep, i=i, r=r, f=f, d=d, g=g, _root=False))
+            if exists(x, "d")
+            else x
+            for x in xs
+        )
+
+    return cf_(
+        id if g else sort,  # return generator or sort by filepath
+        v_(fd) if typef ^ typed else id,  # filetype filter: -f or -d flag
+        globals()["grep"](grep, i=i) if grep else id,  # grep -i flag
+        rflag if r else id,  # recursively listing: -R flag
+    )(
+        flat(
+            [normpath(f"{x}/{o}") for o in (os.listdir(x))] if exists(x, "d") else x
+            for x in (root(paths) if _root else paths)
+        )
+    )
+
+
+@safe
+def grep(regex, i=False):
+    """build a filter to select items matching 'regex' pattern from iterables
+
+    >>> grep(r".json$", i=True)([".json", "Jason", ".JSON", "jsonl", "JsonL"])
+    ['.json', '.JSON']
+    """
+    return vl_(f_(re.search, regex, flags=re.IGNORECASE if i else 0))
+
+
+def split(f, nbytes, prefix):
+    """split a file into multiple parts of specified byte-size like:
+    $ split -b bytes f prefix_
+
+    >>> split(FILE, 1024, "part-")  # doctest: +SKIP
+    """
+    guard(exists(f, "f"), f"split, not found file: {f}")
+    fmt = f"0{len(str(os.stat(f).st_size // nbytes))}d"
+    n = 0
+    rf = reader(f, "rb")
+    chunk = rf.read(nbytes)
+    while chunk:
+        writer(f"{dirname(f)}/{prefix}{n:{fmt}}", "wb").write(chunk)
+        chunk = rf.read(nbytes)
+        n += 1
+
+
+def bytes_to_bin(b, sep=""):
+    return sep.join(f"{x:08b}" for x in b)
 
 
 def bytes_to_int(x, byteorder="big"):
@@ -1180,32 +1496,123 @@ def fn_args(f):
 
 
 def singleton(cls):
-    instances = {}
+    """decorate a class and make it a singleton class"""
+    _reg = {}
 
     @wraps(cls)
     def wrapper(*args, **kwargs):
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
+        if cls not in _reg:
+            _reg[cls] = cls(*args, **kwargs)
+        return _reg[cls]
 
     return wrapper
 
 
-def polling(f, sec, args=None, kwargs=None):
-    def go():
-        polling(f, sec, args, kwargs)
-        if args and kwargs:
-            f(*args, **kwargs)
-        elif kwargs:
-            f(**kwargs)
-        elif args:
-            f(*args)
-        else:
-            f()
+def thread(daemon=False):
+    """create decorators that turn other functions into threads
 
-    t = threading.Timer(sec, go, args, kwargs)
-    t.start()
+    >>> t = thread()(cf_(print, randint))(100)  # doctest: +SKIP
+    >>> t.start()                               # doctest: +SKIP
+    >>> t.join()                                # doctest: +SKIP
+    """
+
+    def t(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            return Thread(target=f, args=args, kwargs=kwargs, daemon=daemon)
+
+        return wrapper
+
     return t
+
+
+class polling:
+    """repeatedly executes a provided function at fixed time intervals
+
+    >>> g = f_(cf_(print, force), lazy(randint, 100))  # doctest: +SKIP
+    >>> p = polling(1, g)                              # doctest: +SKIP
+    >>> p.start()                                      # doctest: +SKIP
+    """
+
+    def __init__(self, sec, f, *args, **kwargs):
+        self.expr = lazy(f, *args, **kwargs)
+        self.timer = f_(Timer, sec, self._g)
+        self.on = False
+        self.t = None
+
+    def _g(self):
+        if self.on:
+            self.expr()
+            self.t = self.timer()
+            self.t.start()
+
+    def start(self):
+        if not self.on:
+            self.on = True
+            self._g()
+
+    def stop(self):
+        self.on = False
+        if self.t:
+            self.t.cancel()
+
+
+def shell(cmd, sync=True, o=True, *, executable="/bin/bash"):
+    """execute shell commands [sync|async]hronously and capture its outputs
+
+      --------------------------------------------------------------------
+        o-value  |  return |  meaning
+      --------------------------------------------------------------------
+         o =  1  |  [str]  |  captures stdout/stderr (2>&1)
+         o = -1  |  None   |  discard (&>/dev/null)
+      otherwise  |  None   |  do nothing or redirection (2>&1 or &>FILE)
+      --------------------------------------------------------------------
+
+    >>> shell("ls -1 ~")                   # doctest: +SKIP
+    >>> shell("find . | sort" o=-1)        # doctest: +SKIP
+    >>> shell("cat *.md", o=writer(FILE))  # doctest: +SKIP
+    """
+    import shlex
+
+    o = PIPE if o == 1 else DEVNULL if o == -1 else 0 if isinstance(o, int) else o
+    sh = f_(
+        Popen,
+        cf_(unwords, ml_(normpath), shlex.split)(cmd),
+        stdin=PIPE,
+        stderr=STDOUT,
+        shell=True,
+        executable=executable,
+    )
+    if sync:
+        if o == PIPE:
+            proc = sh(stdout=o)
+            out, _ = proc.communicate()
+            return lines(out.decode())
+        else:
+            sh(stdout=o).communicate()
+    else:
+        sh(stdout=o)
+
+
+def pbcopy(x):
+    Popen("pbcopy", stdin=PIPE).communicate(x.encode())
+
+
+def pbpaste():
+    return Popen("pbpaste", stdout=PIPE).stdout.read().decode()
+
+
+def timer(t, msg="", /, quiet=False):
+    guard(isinstance(t, (int, float)), f"timer, not a number: {t}")
+    guard(t > 0, "timer, must be given a positive number: {t}")
+    t = int(t)
+    fmt = f"{len(str(t))}d"
+    while t >= 0:
+        if not quiet:
+            print(f"{msg}  {t:{fmt}}", end="\r")
+        time.sleep(1)
+        t -= 1
+    writer().write("\033[K")
 
 
 def docfrom(g, merge=False):
@@ -1283,27 +1690,6 @@ def nprint(x={}, *, _cols=None, _width=10000, _repr=True, **kwargs):
     print(neatly(x, _cols=_cols, _width=_width, _repr=_repr, **kwargs))
 
 
-def pbcopy(x):
-    Popen("pbcopy", stdin=PIPE).communicate(x.encode())
-
-
-def pbpaste():
-    return Popen("pbpaste", stdout=PIPE).stdout.read().decode()
-
-
-def timer(t, msg="", /, quiet=False):
-    guard(isinstance(t, (int, float)), f"timer, not a number: {t}")
-    guard(t > 0, "timer, must be given a positive number: {t}")
-    t = int(t)
-    fmt = f"{len(str(t))}d"
-    while t >= 0:
-        if not quiet:
-            print(f"{msg}  {t:{fmt}}", end="\r")
-        time.sleep(1)
-        t -= 1
-    sys.stdout.write("\033[K")
-
-
 def timestamp(*, origin=None, w=0, d=0, h=0, m=0, s=0, from_iso=None, to_iso=False):
     if from_iso:
         t = datetime.strptime(from_iso, "%Y-%m-%dT%H:%M:%S.%f%z").timestamp()
@@ -1364,21 +1750,21 @@ def taskbar(x=None, desc="working", *, start=0, total=None, barcolor="white", **
     return tb if x is None else track(tb, x, start, total)
 
 
-def __sig__():
+def __sig__(xs):
     def sig(o):
         try:
             return signature(o).__str__()
         except:
             return " is valid, but live-inspect not available"
 
-    return dmap({x: x + sig(eval(x)) for x in __all__})
+    return dmap({x: x + sig(eval(x)) for x in xs})
 
 
 def flist(to_dict=False):
     if to_dict:
-        return __sig__()
+        return __sig__(__all__)
     else:
-        nprint(__sig__(), _cols=14, _repr=False)
+        nprint(__sig__(__all__), _cols=14, _repr=False)
 
 
 sys.setrecursionlimit(5000)

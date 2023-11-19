@@ -99,7 +99,7 @@ True
 ['fun', 'on', 'functions']
 
 >>> unlines(['fun', 'on', 'functions'])
-("fun\non\nfunctions")
+"fun\non\nfunctions"
 
 >>> take(3, repeat(5))        # repeat(5) = [5, 5, ...]
 [5, 5, 5]
@@ -116,10 +116,32 @@ True
 >>> take(3, count(2, 3))      # count(2, 3) = [2, 5, 8, 11, ...]
 [2, 5, 8]
 ```
+### Get binary functions from `python` operators: `sym`
+`sym(OP)` converts `python`'s _symbolic operators_ into _binary functions_.  
+The string forms of operators like `+`, `-`, `/`, `*`, `**`, `==`, `!=`, .. represent the corresponding binary functions.
+> To list all available symbols, call `sym()`.
+
+```python
+>>> sym("+")(5, 2)                 # 5 + 2
+7
+
+>>> sym("==")("sofia", "maria")    # "sofia" == "maria"
+False
+
+>>> sym("%")(123456, 83)           # 123456 % 83
+35
+```
 
 ### Build partial application: `f_` and `ff_`
-`f_` takes arguments _from the left_ (left-associative) while `ff_` takes them _from the right_ (right-associative).
-> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
+- `f_` build left-associative partial application,  
+where the given function's arguments partially evaluation _from the left_.
+- `ff_` build right-associative partial application,  
+where the given function's arguments partially evaluation _from the right_.
+
+> `f_(fn, *args, **kwargs)`  
+>
+> `ff_(fn, *args, **kwargs) == f_(flip(fn), *args, **kwargs)`  
+>
 
 ```python
 >>> f_("+", 5)(2)    # the same as `(5+) 2` in Haskell
@@ -148,8 +170,15 @@ True
 ```
 
 ### Build curried functions: `c_` and `cc_`
-When currying a given function, `c_` takes arguments _from the left_ while `cc_` takes them _from the right_.
-> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
+When currying a given function, 
+- `c_` takes the function's arguments _from the left_ 
+- while `cc_` takes them _from the right_.
+
+> `c_(fn) == curry(fn)`
+>
+> `cc_(fn) == c_(flip(fn))`
+
+See also `uncurry`
 
 ```python
 # currying from the left args
@@ -175,50 +204,53 @@ When currying a given function, `c_` takes arguments _from the left_ while `cc_`
 ```
 
 ### Build composition of functions: `cf_` and `cfd`
-`cf_` (_composition of function_) composes functions using the given list of functions. On the other hand, `cfd` (_composing-function decorator_) decorates a function with the given list of functions.
+- `cf_` (_composition of function_) composes functions using the given list of functions. 
+- `cfd` (_composing-function decorator_) decorates a function with the given list of functions.
 
-> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
+> `cf_(*fn, rep=None)`
+>
+> `cfd(*fn, rep=None)`
 
 ```python
->>> square = ff_("**", 2)     # the same as (^2) in Haskell
->>> add_by_5 = ff_("+", 5)    # the same as (+5)
->>> mul_by_7 = ff_("*", 7)    # the same as (*7)
+>>> square = ff_("**", 2)        # the same as (^2) in Haskell
+>>> add5 = ff_("+", 5)           # the same as (+5) in Haskell
+>>> mul7 = ff_("*", 7)           # the same as (*7) in Haskell
 
->>> cf_(mul_by_7, add_by_5, square)(3)   # (*7) . (+5) . (^2) $ 3
-98                            # mul_by_7(add_by_5(square(3))) = ((3 ^ 2) + 5) * 7
+>>> cf_(mul7, add5, square)(3)   # (*7) . (+5) . (^2) $ 3
+98                               # mul7(add5(square(3))) = ((3 ^ 2) + 5) * 7
 
->>> @cfd(mul_by_7, add_by_5, square)
+>>> cf_(square, rep=3)(2)        # cf_(square, square, square)(2) == ((2 ^ 2) ^ 2) ^ 2 = 256
+256
+
+>>> @cfd(mul7, add5, square)
 ... def even_num_less_than(x):
 ...     return len(list(filter(even, range(x))))
 
->>> even_num_less_than(7)     # even numbers less than 7 = len({0, 2, 4, 6}) = 4
-147                           # mul_by_7(add_by_5(square(4))) = ((4 ^ 2) + 5) * 7
+>>> even_num_less_than(7)        # 'even numbers less than 7' = len({0, 2, 4, 6}) = 4
+147                              # mul7(add5(square(4))) = ((4 ^ 2) + 5) * 7 = 147
 
 # the meaning of decorating a function with a composition of functions
-g = cfd(a, b, c, d)(f)   # g = (a . b . c . d)(f)
+g = cfd(a, b, c, d)(f)           # g = (a . b . c . d)(f)
 
 # the same
-cfd(a, b, c, d)(f)(x)    # g(x) = a(b(c(d(f(x)))))
+cfd(a, b, c, d)(f)(x)            # g(x) = a(b(c(d(f(x)))))
 
-cf_(a, b, c, d, f)(x)    # (a . b . c . d . f)(x) = a(b(c(d(f(x))))) = g(x)
+cf_(a, b, c, d, f)(x)            # (a . b . c . d . f)(x) = a(b(c(d(f(x))))) = g(x)
 ```
 
 `cfd` is very handy and useful to recreate previously defined functions by composing functions. All you need is to write a basic functions to do fundamental things.
 
 ### Partial application of `map`: `m_` and `mm_`
-`m_` builds partial application of `map` (left-associative) while `mm_` builds partial application from right to left (right-associative).
+- `m_` builds partial application of `map` (_left-associative_) 
+- `mm_` builds partial application from right to left (_right-associative_).
 
-> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._
+> Compared to `Haskell`,
+> - `f <$> xs == map(f, xs)`
+> - `(f <$>) == f_(map, f) == m_(f)`
+> - `(<$> xs) == f_(flip(map), xs) == mm_(xs)`
 
-Compared to `Haskell`,
-- `f <$> xs == map(f, xs)`
-- `(f <$>) == f_(map, f) == m_(f)`
-- `(<$> xs) == f_(flip(map), xs) == mm_(xs)`
+Unpacking with `list(..)` or `[* .. ]` is sometimes very annoying. Use `mapl` for low memory consuming tasks instead.
 
-Unpacking with `list(..)` or `[* .. ]` is sometimes very annoying. So often use `mapl` for low memory consuming tasks.
-
-> _Hereafter, function names that end in `l` indicate the result will be unpacked in a list._  
-> See also, `filterl`, `zipl`, `rangel`, `enumeratel`, `reversel`, `flatl` ... and so on
 
 ```python
 # mapl(f, xs) == [* map(f, xs)] == list(map(f, xs))
@@ -248,12 +280,12 @@ Unpacking with `list(..)` or `[* .. ]` is sometimes very annoying. So often use 
 ```
 
 ### Partial application of `filter`: `v_` and `vv_`
-`v_` builds partial application of `filter` (left-associative) while `vv_` builds partial application from right to left (right-associative).
+- `v_` builds partial application of `filter` (_left-associative_) 
+- `vv_` builds partial application from right to left (_right-associative_).
 
 The same as `map` (mapping functions over iterables) except for filtering iterables using predicate function.
 
 
-> _`_` in function names indicates that it is a partial application (not-fully-evaluated function) builder._  
 > The name of `v_` comes from the shape of 'funnel'.
 
 ```python
@@ -271,27 +303,30 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 >>> even_nums(range(10))
 [0, 2, 4, 6, 8]
 
->>> even_nums({2, 3, 5, 7, 11, 13, 17, 19, 23})
+>>> even_nums({2, 3, 5, 7, 11, 13, 17})
 [2]
 
-# among prime numbers less than 50
->>> primes_lt_50 = vvl_([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47])
+# partailly evaluated 'filter' using 'prime numbers less than 20'
+>>> primes_lt_20 = vvl_([2, 3, 5, 7, 11, 13, 17, 19])
 
-# numbers greater than 20 (among prime numbers less than 50)
->>> primes_lt_50(ff_(">", 20))    # (> 20)
-[23, 29, 31, 37, 41, 43, 47]
+# filter out numbers LE 10
+>>> primes_lt_20(ff_(">", 10))    # (> 10)
+[11, 13, 17, 19]
 
-# the same, used a lambda function
->>> primes_lt_50(lambda x: x % 3 == 2)
+# used a lambda function
+>>> primes_lt_20(lambda x: x % 3 == 2)
 [2, 5, 11, 17, 23, 29, 41, 47]
 
-# the same, used function composition
->>> primes_lt_50(cf_(ff_("==", 2), ff_("%", 3)))    # ((== 2) . (% 3))
+# used the composition of functions
+>>> primes_lt_20(cf_(ff_("==", 2), ff_("%", 3)))    # ((== 2) . (% 3))
 [2, 5, 11, 17, 23, 29, 41, 47]
 ```
 
 ### Other higher-order functions
 ```python
+>>> flip(pow)(7, 3)                             # the same as `pow(3, 7) = 3 ** 7`
+2187
+
 >>> bimap(f_("+", 3), f_("*", 7), (5, 7))       # bimap (3+) (7*) (5, 7)
 (8, 49)                                         # (3+5, 7*7)
 
@@ -359,15 +394,15 @@ The same as `map` (mapping functions over iterables) except for filtering iterab
 ```
 
 ### Lazy Evaluation: `lazy` and `force`
-- `lazy` defers the evaluation of a function(or expression) and returns the _deferred expression_.   
-- `force` forces the deferred-expression to be fully evaluated when needed.  
+- `lazy` defers the evaluation of a function(or expression) and returns the _deferred expression_.
+- `force` forces the deferred-expression to be fully evaluated when needed.
 it reminds `Haskell`'s `force x = deepseq x x`.
 
-> `lazy(function-name, *args, **kwargs)`  
+> `lazy(function-name, *args, **kwargs)`
 >
-> `force(expr)`   
+> `force(expr)`
 >
-> `mforce([expr])`  
+> `mforce([expr])`
 
 ```python
 # strictly generate a random integer between [1, 10)
@@ -433,7 +468,7 @@ Not related to `lazy` operation, but you do the same thing with `uncurry`
 ```
 
 ### Normalize containers: `flat`
-`flat` flattens all kinds of iterables except for _string-like object_ (`str`, `bytes`). 
+`flat` flattens all kinds of iterables except for _string-like object_ (`str`, `bytes`).
 
 > `flat(*args)`
 ```python
@@ -459,7 +494,12 @@ deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
 ```
 
 ### Handy File Tools: `ls` and `grep`
-Use `ls` and `grep` in the same way you use in your terminal every day.  
+Use `ls` and `grep` in the same way you use in your terminal every day.
+
+> _This is just a more intuitive alternative to_ `os.listdir` and `os.walk`.  
+> When applicable, try using the _more flexible_ `shell("ls -a1 <path>")` or `shell("find <path>")` instead.   
+
+See also: `shell`
 
 #### Background
 `Path` from `pathlib` and `glob` are great and useful. But,
@@ -479,9 +519,9 @@ Use `ls` and `grep` in the same way you use in your terminal every day.
 - if `d` is set, it lists only directories like `find -s *paths -type d`
 - if `g` is set, it returns a _generator_ instead of a sorted list
 
- 
+
 ```python
-# couldn't be simpler! 
+# couldn't be simpler!
 >>> ls()       # the same as ls("."): get contents of the curruent dir
 
 # expands "~" automatically
@@ -499,10 +539,10 @@ Use `ls` and `grep` in the same way you use in your terminal every day.
 ```
 ```python
 # only files in '.git' directory
->>> ls(".git", r=True, f=True) 
+>>> ls(".git", r=True, f=True)
 
 # only directories in '.git' directory
->>> ls(".git", r=True, d=True) 
+>>> ls(".git", r=True, d=True)
 ```
 ```python
 # search recursivley and matching a pattern with `grep`
@@ -537,7 +577,7 @@ Use `ls` and `grep` in the same way you use in your terminal every day.
 
 
 `grep` build a filter to select items matching `REGEX` pattern from _iterables_.
-> `grep(REGEX, i=BOOL)` 
+> `grep(REGEX, i=BOOL)`
 
 ```python
 # 'grep' builds filter with regex patterns
@@ -558,43 +598,32 @@ See also: `HOME`, `cd`, `pwd`, `mkdir`, `rmdir`, `exists`, `dirname`, and `basen
 
 `nprint(DICT, _cols=INDENT, _width=WRAP, **kwargs)`
 
-
 ```python
->>> o = dict(name="yunchan lim", age=19, profession="pianist")
->>> mozart=["piano concerto no.22 in E-flat Major, k.482", "sonata No.9 in D Major, k.311"]
->>> beethoven=["piano concerto no.3 in C minor, op.37", "eroica variations, Op.35"]
->>> nprint(o, cliburn=dict(mozart=mozart, beethoven=beethoven))
-```
-```
-      name  |  'yunchan lim'
-       age  |  19
-profession  |  'pianist'
-   cliburn  |     mozart  -  'piano concerto no.22 in E-flat Major, k.482'
-            :             -  'sonata No.9 in D Major, k.311'
-            :  beethoven  -  'piano concerto no.3 in C minor, op.37'
-            :             -  'eroica variations, Op.35'
-```
-```python
->>> o = dict(widget=dict(debug="on",
-...                      settings=["log", "0xff",
-...                                dict(window=dict(title="sample", name="main", width=480, height=360))]),
-...          image=dict(src="sun.png", align="center", kind=["data", "size", dict(hOffset=250, vOffset=100)]))
+>>> o = {
+...   "$id": "https://example.com/enumerated-values.schema.json",
+...   "$schema": "https://json-schema.org/draft/2020-12/schema",
+...   "title": "Enumerated Values",
+...   "type": "object",
+...   "properties": {
+...     "data": {
+...       "enum": [42, True, "hello", None, [1, 2, 3]]
+...     }
+...   }
+... }
 >>> nprint(o)
 ```
 ```
-widget  |     debug  |  'on'
-        :  settings  -  'log'
-        :            -  '0xff'
-        :            -  window  |   title  |  'sample'
-        :                       :    name  |  'main'
-        :                       :   width  |  480
-        :                       :  height  |  360
- image  |    src  |  'sun.png'
-        :  align  |  'center'
-        :   kind  -  'data'
-        :         -  'size'
-        :         -  hOffset  |  250
-        :            vOffset  |  100
+       $id  |  'https://example.com/enumerated-values.schema.json'
+   $schema  |  'https://json-schema.org/draft/2020-12/schema'
+properties  |  data  |  enum  -  42
+            :        :        -  True
+            :        :        -  'hello'
+            :        :        -  None
+            :        :        -  -  1
+            :        :        -  -  2
+            :        :        -  -  3
+     title  |  'Enumerated Values'
+      type  |  'object'
 ```
 
 
@@ -668,12 +697,8 @@ Likewise, use `guard` if there need _assertion_ not as a statement, but as an _e
 >>> guard(len(x := range(11)) == 10, f"length is not 10: {len(x)}")
 ```
 
-### Other utils
-_Documents will be updated_
-
-
-### Real-world Example
-A causal self-attention of the `transformer` model based on `pytorch` can be described as follows.  
+### Real-World Example
+A causal self-attention of the `transformer` model based on `pytorch` can be described as follows.
 _Somebody_ insists that this helps to follow the process flow without distraction.
 
 ```python
