@@ -174,38 +174,16 @@ def test_mapl():
     assert list(map(fn, range(1, 6))) == mapl(fn, range(1, 6))
 
 
-def test_ml():
-    fn = f_("*", 8)
-    assert ml_(fn)(range(1, 6)) == [8, 16, 24, 32, 40]
-    assert list(m_(fn)(range(1, 6))) == ml_(fn)(range(1, 6))
-
-
-def test_mml():
-    fn = f_("*", 8)
-    assert mml_(range(1, 6))(fn) == [8, 16, 24, 32, 40]
-    assert list(mm_(range(1, 6))(fn)) == mml_(range(1, 6))(fn)
-
-
 def test_filterl():
     assert filterl(even, range(10)) == [0, 2, 4, 6, 8]
     assert list(filter(even, range(10))) == filterl(even, range(10))
 
 
-def test_vl():
-    assert vl_(even)(range(10)) == [0, 2, 4, 6, 8]
-    assert list(v_(even)(range(10))) == vl_(even)(range(10))
-
-
-def test_vvl():
-    assert vvl_(range(10))(even) == [0, 2, 4, 6, 8]
-    assert list(vv_(range(10))(even)) == vvl_(range(10))(even)
-
-
-def test_reverse():
-    assert reverse((1, 2, 3, 4)) == [4, 3, 2, 1]
-    assert reverse(range(1, 5)) == [4, 3, 2, 1]
-    assert reverse("sofia") == ["a", "i", "f", "o", "s"]
-    assert reverse([]) == []
+def test_rev():
+    assert rev((1, 2, 3, 4)) == [4, 3, 2, 1]
+    assert rev(range(1, 5)) == [4, 3, 2, 1]
+    assert rev("sofia") == ["a", "i", "f", "o", "s"]
+    assert rev([]) == []
 
 
 def test_takewhilel():
@@ -399,30 +377,10 @@ def test_is():
     assert not _is([0, 1, 2], rangel(3))
 
 
-def test_is_not():
-    assert not _is_not("sofia", "sofia")
-    assert not _is_not((0, 1, 2), (0, 1, 2))
-    assert _is_not([0, 1, 2], rangel(3))
-
-
-def test__t():
-    assert _t(0, 1, 2) == (0, 1, 2)
-
-
-def test__r():
-    assert _r(0, 1, 2) == (2, 1, 0)
-
-
-def test__l():
-    assert _l(0, 1, 2) == [0, 1, 2]
-
-
-def test__s():
-    assert _s(0, 1, 2) == {0, 1, 2}
-
-
-def test__d():
-    assert _d(0, 1, 2) == deque([0, 1, 2])
+def test_isnt():
+    assert not _isnt("sofia", "sofia")
+    assert not _isnt((0, 1, 2), (0, 1, 2))
+    assert _isnt([0, 1, 2], rangel(3))
 
 
 def test_lazy():
@@ -439,18 +397,6 @@ def test_mforce():
 
 def test_flatl(d):
     assert flatl(d) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-
-
-def test_flatt(d):
-    assert flatt(d) == (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
-
-
-def test_flatd(d):
-    assert flatd(d) == deque([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
-
-
-def test_flats(d):
-    assert flats(d) == {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 
 
 def test_capture():
@@ -480,7 +426,3 @@ def test_bytes_to_int():
 
 def test_int_to_bytes():
     assert int_to_bytes(28836210413889907) == b"francis"
-
-
-def test_fn_args():
-    assert fn_args(fn) == ["a", "b", "c", "d"]

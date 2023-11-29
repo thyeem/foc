@@ -109,3 +109,10 @@
 - Add `thread` and `shell`
 - Fix `sym` and `polling`
 - Add doctest
+
+# 0.3.0
+- Leap version
+
+# 0.3.1
+- A huge update: introduced `piper` and removed all the unnecessary
+- Add `zipwith`, `proc`, `trap` and other utilities
