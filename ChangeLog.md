@@ -116,3 +116,8 @@
 # 0.3.1
 - A huge update: introduced `piper` and removed all the unnecessary
 - Add `zipwith`, `proc`, `trap` and other utilities
+
+# 0.4.0
+- Replace `piper` with `composable`: composition of functions by symbol
+- Fix: Quick start
+- Add more documentation on functions

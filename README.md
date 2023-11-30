@@ -10,7 +10,8 @@ Functions from the `Python` standard library are great. But some notations are a
 
 ## Tl;dr
 
-- `foc` provides a collection of ___higher-order functions___, some helpful (_pure_) _functions_, and ___piper___.
+- `foc` provides a collection of ___higher-order functions___, some helpful (_pure_) _functions_.
+- `foc` provides an easy way to ___compose functions by symobl___. (`.` and `|`)
 - `foc` respects the `python` standard library. _Never reinvented the wheel_.
 
 
@@ -22,7 +23,6 @@ $ pip install -U foc
 # import
 >>> from foc import *
 ```
-> To list all available functions, call `catalog()`.
 
 ## Ground rules
 - _No dependencies_ except for the `python` standard library
@@ -39,12 +39,30 @@ $ pip install -U foc
   > `cf_`, `f_`, `ff_`, `c_`, `cc_`, `u_`, ...
 
 ## Quickstart
-`foc` collection consists of `piper` and `regular functions`. `foc`'s functions are mostly `piper`.  
 
+Let's pick lottery numbers. That is to pick 6 numbers from 1 to 45. _The Lotto_ [_(korean lottery)_](https://en.lottolyzer.com/home/south-korea/6_slash_45-lotto)
+```python
+>>> range(1, 46) | choice(size=6) | sort
+[2, 8, 22, 24, 37, 39]
 
-### As a `regular function`
-No further explanations are needed. Just use them as we used.
+# This is one game. People usually buy five games at once.
 
+>>> [ range(1, 46) | choice(size=6) | sort for _ in range(5) ]
+[[4, 6, 11, 38, 41, 45],
+ [5, 8, 23, 25, 26, 40],
+ [13, 18, 23, 25, 37, 44],
+ [17, 21, 24, 32, 41, 43],
+ [5, 9, 13, 25, 30, 38]]
+
+# Or equivalently, 
+# Feel Unix pipelines
+>>> replicate(5, range(1, 46)) | map(choice(size=6)) | map(sort) | unpack
+
+# Feel Haskell-like mathematical symbol
+>>> (unpack . map(sort . fx(choice(size=6))))(replicate(5, range(1, 46)))
+```
+
+The functions `foc` provides are not particularly different. Exactly, it look like normal functions.  
 ```python
 >>> id("francis")
 'francis'
@@ -55,22 +73,57 @@ False
 >>> take(3, range(5, 10))
 [5, 6, 7]
 ```
-The above functions are all `piper` and are:
+
+`foc` just adds ways to __compose functions by symbols__
+| symbol          | description                     | evaluation order | Available functions            |
+|-----------------|---------------------------------|------------------|--------------------------------|
+| `.` (dot)       | same as the mathematical symbol | backwards        | all _globals_, all _built-ins_ |
+| `\|` (pipeline) | in Unix pipeline manner         | in order         | `@fx`-_decorated functions_    |
+
+### Composition of Functions with `.`
 ```python
->>> "francis" | id
-'francis'
+>>> (length . range)(10)
+10
 
->>> 3 | even
-False
+>>> (unpack . filter(even) . range)(10)  # 'unpack' unpacks generators
+[0, 2, 4, 6, 8]
 
->>> range(5, 10) | take(3)
-[5, 6, 7]
+>>> (sum . map(f_("+", 5)) . range)(10)  # f_("+", 5) == lambda x: x+5
+95
+
+>>> (last . sort . shuffle . unpack . range)(11)
+10
 ```
 
-### As a `piper`
-`piper` is a special type of function that facilitate function composition in a pipeline-like manner.
-> To list all available `piper`, call `catalog(piper=True)`.
+all functions in `globals()` including all `built-ins` can be direcly composed by `.`, except for __two__.
 
+
+- `lambada` 
+- _partial application_ like: `partial(map, lambada x: x+5)`
+  > the same as `map(f_("+", 5))`. They are interchangeable.   
+
+In those case, __just wrap them in `fx`__.
+```python
+>>> (fx(lambda x: x+2) . fx(lambda x: x*8))(5)    # don't. fx(lambda *args, **kwargs: ...)
+42
+>>> (fx() . (f_("+", 2)) . f_("*", 8))(5)         # isn't it better?
+42
+
+>>> (sum . fx(partial(map, lambda x: x+5)))(range(5))   # don't partial(map, lambada ...)
+37
+>>> (sum . map(f_("+", 5)))(range(5))                   # `map(f_("+", 5))` is enough
+37
+
+>>> (unchars . map(chr))(range(73, 82))
+'IJKLMNOPQ'
+
+>>> (unpack . map(pred . succ) . range)(5)
+[0, 1, 2, 3, 4]
+```
+But, it's very tedious work wrapping partial `map` in `fx` every time. Thus, `f_`, `ff_`, `curry`, `uncurry`, `map`, and `filter` have been processed __so that they can be used without `fx`__. 
+> _See also_: `f_`, `ff_`, `c_`, `cc_`, `u_`, `curry`, `uncurry`, `map`, and `filter`
+
+### Composition of Functions with `|`
 ```python
 >>> range(10) | length
 10
@@ -85,53 +138,51 @@ False
 10
 ```
 
-If you want to make a function `piper` on the fly, just wrap the function with `piper`. That's it.
+Unlike the case of `.`, composing functions with `|` is allowed only for `composable` functions (or `fx` function). But don't worry. Most functions `foc` provides are the `fx` function.   
+
+`fx` functions (or _Function eXtension_) are `@fx`-decorated functions.
+> To list/get all available `fx` functions, call `catalog(fx=True)` or `lsfx()`.
+
+
+If you want to make a function the `fx` function on the fly, __just wrap the function in `fx`__. 
 ```python
->>> 7 | piper(lambda x: x * 6)
+>>> 7 | fx(lambda x: x * 6)
 42
 ```
 
 Try binding a function to a new reference:
 ```python
->>> foo = piper(func)
+>>> foo = fx(func)
 ```
 
-or use `piper` decorator. All the same. 
+or use `fx` decorator. All the same. 
 ```python
->>> @piper            # @piper pipefies `func`
-... def func(arg):    # arg | func == func(arg)
+>>> @fx               # from now on, arg | func == func(arg)
+... def func(arg):     
 ...    ...
 ```
 
 
 ## Examples
+These are part of the _symbol-composable_ functions `foc` provides.  
+> To list all available functions, call `catalog()`.
 
-### Simple Functions
+### Basic (pure) functions 
 ```python
 >>> id("francis")
->>> "francis" | id
 'francis'
 
 >>> const(5, "no-matther-what-comes-here")
->>> 'whatever' | const(5)
 5
 
 >>> seq("only-returns-the-following-arg", 5)
->>> 5 | seq('whatever')
 5
 
 >>> void(randbytes(256))
->>> randbytes(256) | void
-... (returns None)
 
 >>> fst(["sofia", "maria", "claire"])
->>> ["sofia", "maria", "claire"] | fst
 'sofia'
-```
 
-Likewise, the below are all `piper`.
-
-```python
 >>> snd(("sofia", "maria", "claire"))
 'maria'
 
@@ -144,17 +195,20 @@ Likewise, the below are all `piper`.
 >>> drop(3, "github") | unpack 
 ['h', 'u', 'b']
 
->>> head(range(1,5)) 
+>>> head(range(1,5))             # return 'None' when []
 1
 
->>> last(range(1,5))
+>>> last(range(1,5))             # return 'None' when []
 4
 
->>> init(range(1,5)) | unpack
+>>> init(range(1,5)) | unpack    # return [] when []
 [1, 2, 3]
 
->>> tail(range(1,5)) | unpack 
+>>> tail(range(1,5)) | unpack    # return [] when []
 [2, 3, 4]
+
+>>> pair("sofia", "maria")
+('sofia', 'maria')
 
 >>> pred(3)
 2
@@ -173,6 +227,18 @@ True
 
 >>> elem(5, range(10))
 True
+
+>>> not_elem("fun", "functions")
+False
+
+>>> nub("3333-13-1111111")
+['3', '-', '1']
+
+>>> chars("sofimarie")
+['s', 'o', 'f', 'i', 'm', 'a', 'r', 'i', 'e']
+
+>>> unchars(['s', 'o', 'f', 'i', 'm', 'a', 'r', 'i', 'e'])
+'sofimarie'
 
 >>> words("fun on functions")
 ['fun', 'on', 'functions']
@@ -201,7 +267,7 @@ True
 >>> take(3, count(2, 3))      # count(2, 3) = [2, 5, 8, 11, ...]
 [2, 5, 8]
 ```
-### Higher-Order Functions
+### Higher-order functions
 ```python
 >>> flip(pow)(7, 3)                             # the same as `pow(3, 7) = 3 ** 7`
 2187
@@ -395,33 +461,57 @@ See also `uncurry`
 
 `cfd` is very handy and useful to recreate previously defined functions by composing functions. All you need is to write a basic functions to do fundamental things.
 
-### Extend and Pipefy Built-ins: `map`, `filter` and `zip`
+### Seamlessly extends: `map`, `filter` and `zip`
 - Extend usability while _maintaining full compatibility_
-- __Pipefied__, __symbolified__ and __partially-applied__ automatically
-- __Never use these functions__ if you don't know what you're doing!
+- _No harm_ to existing usage. Just __added ways to compose function by symbols__
 
 > `map(f, *xs)`   
 > `mapl(f, *xs)`
 ```python
->>> map(abs, range(-2, 3)) | unpack
+>>> (unpack . map(abs))(range(-2, 3)) | unpack
+[2, 1, 0, 1, 2]
+>>> map(abs)(range(-2, 3)) | unpack
 [2, 1, 0, 1, 2]
 
->>> map("*", [1, 2, 3], [4, 5, 6]) | unpack    # the same as `zipwith`
-[4, 10, 18]
+>>> (unpack . map(lambda x: x*8))(range(1, 6))
+[8, 16, 24, 32, 40]
+>>> range(1, 6) | map(lambda x: x*8) | unpack
+[8, 16, 24, 32, 40]
 
->>> [4, 5, 6] | map("*", [1, 2, 3]) | unpack   # pipefied
+>>> (unpack . map("*", [1, 2, 3]))([4, 5, 6])
+[4, 10, 18]
+>>> [4, 5, 6] | map("*", [1, 2, 3]) | unpack
 [4, 10, 18]
 ```
 
 > `filter(p, xs)`  
 > `filterl(p, xs)`
 ```python
+>>> (unpack . filter(f_("==", "f")))("fun-on-functions")
+['f', 'f']
 >>> filter(f_("==", "f"))("fun-on-functions") | unpack
 ['f', 'f']
 
 >>> primes = [2, 3, 5, 7, 11, 13, 17, 19]
+>>> (unpack . filter(lambda x: x % 3 == 2))(primes)
+[2, 5, 11, 17]
 >>> primes | filter(cf_(ff_("==", 2), ff_("%", 3))) | unpack
 [2, 5, 11, 17]
+```
+
+> `zip(*xs, strict=False)`  
+> `zipl(*xs, strict=False)`  
+
+```python
+>>> (unpack . f_(zip, "LOVE") . range)(3)
+[('L', 0), ('O', 1), ('V', 2)]
+>>> zip("LOVE", range(3)) | unpack
+[('L', 0), ('O', 1), ('V', 2)]
+
+>>> (unpack . uncurry(zip))(("LOVE", range(3),))
+[('L', 0), ('O', 1), ('V', 2)]
+>>> ("LOVE", range(3)) | uncurry(zip) | unpack
+[('L', 0), ('O', 1), ('V', 2)]
 ```
 
 ### Lazy Evaluation: `lazy` and `force`
@@ -521,8 +611,30 @@ Likewise, use `guard` if there need _assertion_ not as a statement, but as an _e
 ```
 
 ### Exception catcher builder: `trap`
+`trap` is a decorator factory that creates exception catchers. `e` indicates error types you want to catch, `callback` is a callback function to invoke with the catched error.  
+This is very useful when handling exceptions with a functional approach on a _function-by-function basis_
 
-_Document will be updated_
+> `trap(callback, e=None)`
+
+This will catch `ValueError` and then `print` the error message.
+```python
+>>> trap(print, e=ValueError)(error)(msg="occured a value-error", e=ValueError)
+Occured a value-error
+```
+This will catch all kinds of errors, then count the length of the error message when calling `func(*args, **kwargs)`.  
+```python
+trap(cf(len, str), e=None)(func)(*args, **kwargs)
+```
+
+This function will never throw errors. It return only `None` instead of raising exceptions.
+
+```python
+@trap(callback=void, e=None)
+def func(*args, **kwargs):
+    ...
+```
+
+
 
 ## Utilities
 ### Normalize containers: `flat`
@@ -716,8 +828,43 @@ _This is just a more intuitive alternative to_ `os.listdir` and `os.walk`. When 
 ```
 ['foc/__init__.py']
 ```
-See also: `HOME`, `cd`, `pwd`, `mkdir`, `rmdir`, `exists`, `dirname`, and `basename`.
+_See also_: `HOME`, `cd`, `pwd`, `mkdir`, `rmdir`, `exists`, `dirname`, and `basename`.
 
 ### Flexible Progress Bar: `taskbar`
 
-_Document will be updated_
+`taskbar` makes it easy to do progress bar related tasks. Acutally `taskbar` is the same as the `rich.progress` except for below:
+
+- _No install required_
+  > `taskbar` use `pip`'s bundle. `pip` is already installed almost everywhere.
+- Fixed to default _`tqdm`-like bar style_
+- _Simplified further_ the `rich.progress`'s usage
+  > Use `taskbar` only instead of `Progress()` and `track()`.
+
+> `taskbar(x=None, desc="working", *, start=0, total=None, barcolor="white", **kwargs)`  
+> _See also_: `rich.progress.Progress(.., **kwargs)`
+
+```python
+# simply with iterables (or generator with 'total' length)
+>>> for _ in taskbar(range(100), "[cyan] training model"):
+...    ...   
+ training model  100%  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  100/100  0:00:20 < 0:00:00  4.94 it/s
+
+# when staring in the middle of a progress
+>>> for _ in taskbar(range(100), "[cyan] training model", start=30):
+...     ... 
+
+# manual update with multiple tasks
+>>> with taskbar() as tb:
+...     task1 = tb.add_task("[red] fine-tuning", total=1000)
+...     task2 = tb.add_task("[green] train-critic", total=1000)
+...     task3 = tb.add_task("[cyan] reinforce", total=1000)
+...     while not tb.finished:
+...         ...
+...         tb.update(task1, advance=0.9)
+...         tb.update(task2, advance=0.5)
+...         tb.update(task3, advance=0.1)
+...
+ fine-tuning   18%  ━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   178/1000  0:00:20 < 0:01:34  8.79 it/s
+ train-critic  10%  ━━━╸━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    99/1000  0:00:20 < 0:03:05  4.88 it/s
+ reinforce      6%  ━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    59/1000  0:00:20 < 0:05:22  2.93 it/s
+```

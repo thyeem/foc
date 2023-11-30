@@ -21,10 +21,11 @@ from subprocess import DEVNULL, PIPE, STDOUT, Popen
 from textwrap import fill
 from threading import Thread, Timer
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 __all__ = [
-    "piper",
+    "composable",
+    "fx",
     "trap",
     "safe",
     "id",
@@ -170,8 +171,8 @@ __all__ = [
     "nprint",
     "timestamp",
     "taskbar",
+    "nfpos",
     "catalog",
-    "piperp",
     "rev",
     "uniq",
     "unpack",
@@ -191,37 +192,82 @@ __all__ = [
 ]
 
 
-class piper:
-    """decorator to facilitate function composition in a pipeline-like manner.
+class composable:
+    """Lifts the given function to be 'composable' by symbols.
+    'composable' allows functions to be composed in two intuitive ways.
 
+    +----------+---------------------------------+------------+
+    |  symbol  |         description             | eval-order |
+    +----------+---------------------------------+------------+
+    | . (dot)  | same as the mathematical symbol | backwards  |
+    | | (pipe) | in Unix pipeline manner         | in order   |
+    +----------+---------------------------------+------------+
+
+    >>> fx = composable
+
+    'fx' makes a function `composable` on the fly.
+    `fx` stands for 'Function eXtension'.
+
+    >>> (length . range)(10)
+    10
     >>> range(10) | length
     10
-    >>> range(10) | filterl(even)
+
+    >>> (unpack . filter(even) . range)(10)
     [0, 2, 4, 6, 8]
+    >>> range(10) | filter(even) | unpack
+    [0, 2, 4, 6, 8]
+
+    >>> (unpack . map(pred . succ) . range)(5)
+    [0, 1, 2, 3, 4]
+    >>> (sum . map(f_("+", 5)) . range)(10)
+    95
     >>> range(10) | map(f_("+", 5)) | sum
     95
-    >>> rangel(11) | shuffle | sort | last
+
+    >>> (last . sort . shuffle . unpack . range)(11)
     10
+    >>> range(11) | unpack | shuffle | sort | last
+    10
+
+    >>> (unchars . map(chr))(range(73, 82))
+    'IJKLMNOPQ'
     >>> range(73, 82) | map(chr) | unchars
     'IJKLMNOPQ'
-    >>> 7 | piper(lambda x: x * 6)
+
+    >>> (fx(lambda x: x * 6) . fx(lambda x: x + 4))(3)
+    42
+    >>> 3 | fx(lambda x: x + 4) | fx(lambda x: x * 6)
     42
     """
 
-    def __init__(self, f):
+    def __init__(self, f=lambda x: x):
         self.f = f
-        self._pipefied = True
         wraps(f)(self)
 
     def __ror__(self, other):
         return self.f(other)
 
     def __call__(self, *args, **kwargs):
-        if len(args) < (npos := nfpos(self.f)) or not args and kwargs:
+        npos = nfpos(self.f)
+        if len(args) < npos or (not args and kwargs):
             if not npos:
                 return self.f(*args, **kwargs)
-            return piper(f_(self.f, *args, **kwargs))
+            return fx(f_(self.f, *args, **kwargs))
         return self.f(*args, **kwargs)
+
+    def __getattr__(self, key):
+        g = globals().get(key, getattr(builtins, key, None))
+        guard(callable(g), f"fx, no such callable: {key}", e=AttributeError)
+        if capture(r"\bcomposable|fx\b", key):
+            return lambda g: fx(cf_(self.f, g))
+        if capture(r"\bf_|ff_|c_|cc_|u_|curry|uncurry|mapl?|filterl?\b", key):
+            return lambda *a, **k: fx(cf_(self.f, g(*a, **k)))
+        return fx(cf_(self.f, g))
+
+
+# for the sake of brevity
+fx = composable
 
 
 def trap(callback, e=None):
@@ -254,7 +300,7 @@ def safe(f):
     return trap(callback=void, e=None)(f)
 
 
-@piper
+@fx
 def id(x):
     """identity function
 
@@ -266,7 +312,7 @@ def id(x):
     return x
 
 
-@piper
+@fx
 def const(x, _):
     """build an id function that returns a given 'x'.
 
@@ -278,7 +324,7 @@ def const(x, _):
     return x
 
 
-@piper
+@fx
 def seq(_, x):
     """return the id function after consuming the given argument.
 
@@ -290,7 +336,7 @@ def seq(_, x):
     return x
 
 
-@piper
+@fx
 def void(_):
     """return 'None' after consuming the given argument.
 
@@ -300,7 +346,7 @@ def void(_):
     return
 
 
-@piper
+@fx
 @safe
 def fst(x):
     """get the first component of a given iterable.
@@ -313,7 +359,7 @@ def fst(x):
     return nth(1, x)
 
 
-@piper
+@fx
 @safe
 def snd(x):
     """get the second component of a given iterable.
@@ -326,7 +372,7 @@ def snd(x):
     return nth(2, x)
 
 
-@piper
+@fx
 def nth(n, x):
     """get the 'n'-th component of a given iterable 'x'.
 
@@ -338,7 +384,7 @@ def nth(n, x):
     return x[n - 1] if hasattr(x, "__getitem__") else next(islice(x, n - 1, None))
 
 
-@piper
+@fx
 def take(n, x):
     """take 'n' items from a given iterable 'x'.
 
@@ -350,7 +396,7 @@ def take(n, x):
     return islice(x, n) | unpack
 
 
-@piper
+@fx
 def drop(n, x):
     """return items of the iterable 'x' after skipping 'n' items.
 
@@ -362,7 +408,7 @@ def drop(n, x):
     return islice(x, n, None)
 
 
-@piper
+@fx
 @safe
 def head(x):
     """extract the first element of a given iterable: the same as 'fst'.
@@ -375,7 +421,7 @@ def head(x):
     return fst(x)
 
 
-@piper
+@fx
 @safe
 def tail(x):
     """extract the elements after the 'head' of a given iterable.
@@ -388,7 +434,7 @@ def tail(x):
     return drop(1, x)
 
 
-@piper
+@fx
 @safe
 def init(x):
     """return all the elements of an iterable except the 'last' one.
@@ -399,13 +445,16 @@ def init(x):
     [1, 2, 3]
     """
     it = iter(x)
-    o = next(it)
+    try:
+        o = next(it)
+    except StopIteration:
+        return
     for i in it:
         yield o
         o = i
 
 
-@piper
+@fx
 @safe
 def last(x):
     """extract the last element of a given iterable.
@@ -418,7 +467,7 @@ def last(x):
     return deque(x, maxlen=1)[0]
 
 
-@piper
+@fx
 def ilen(x):
     """get the length of a given iterator.
 
@@ -432,7 +481,7 @@ def ilen(x):
     return next(c)
 
 
-@piper
+@fx
 def pair(a, b):
     """make the given two arguments a tuple pair.
 
@@ -444,7 +493,7 @@ def pair(a, b):
     return (a, b)
 
 
-@piper
+@fx
 def pred(x):
     """return the predecessor of a given value: it substracts 1.
 
@@ -456,7 +505,7 @@ def pred(x):
     return x - 1
 
 
-@piper
+@fx
 def succ(x):
     """return the successor of a given value: it adds 1.
 
@@ -468,7 +517,7 @@ def succ(x):
     return x + 1
 
 
-@piper
+@fx
 def odd(x):
     """check if the given number is odd.
 
@@ -480,7 +529,7 @@ def odd(x):
     return x % 2 == 1
 
 
-@piper
+@fx
 def even(x):
     """check if the given number is even.
 
@@ -492,7 +541,7 @@ def even(x):
     return x % 2 == 0
 
 
-@piper
+@fx
 def null(x):
     """check if a given collection is empty.
 
@@ -504,7 +553,7 @@ def null(x):
     return len(x) == 0
 
 
-@piper
+@fx
 def chars(x):
     """split string 'x' into `chars`: the same as (:[]) <$> x.
 
@@ -516,7 +565,7 @@ def chars(x):
     return list(x)
 
 
-@piper
+@fx
 def unchars(x):
     """inverse operation of 'chars': the same as 'concat'.
 
@@ -528,7 +577,7 @@ def unchars(x):
     return "".join(x)
 
 
-@piper
+@fx
 def words(x):
     """joins a list of words with the blank character.
 
@@ -540,7 +589,7 @@ def words(x):
     return x.split()
 
 
-@piper
+@fx
 def unwords(x):
     """breaks a string up into a list of words.
 
@@ -552,7 +601,7 @@ def unwords(x):
     return " ".join(x)
 
 
-@piper
+@fx
 def lines(x):
     """splits a string into a list of lines using the delimeter '\\n'.
 
@@ -564,7 +613,7 @@ def lines(x):
     return x.splitlines()
 
 
-@piper
+@fx
 def unlines(x):
     """joins a list of lines with the newline character, '\\n'.
 
@@ -576,7 +625,7 @@ def unlines(x):
     return "\n".join(x)
 
 
-@piper
+@fx
 def elem(x, xs):
     """check if the element exists in the given iterable.
 
@@ -588,7 +637,7 @@ def elem(x, xs):
     return x in xs
 
 
-@piper
+@fx
 def not_elem(x, xs):
     """the negation of 'elem'.
 
@@ -600,7 +649,7 @@ def not_elem(x, xs):
     return x not in xs
 
 
-@piper
+@fx
 def nub(x):
     """removes duplicate elements from a given iterable.
 
@@ -612,7 +661,7 @@ def nub(x):
     return dict.fromkeys(x) | unpack
 
 
-@piper
+@fx
 def repeat(x, nf=True):
     """create an infinite list with x value of every element:
     if nf (NF, Normal Form) is set, callable objects will be evaluated.
@@ -625,7 +674,7 @@ def repeat(x, nf=True):
     return (x() if nf and callable(x) else x for _ in count())
 
 
-@piper
+@fx
 def replicate(n, x, nf=True):
     """get a list of length `n` from an infinite list with `x` values.
 
@@ -637,7 +686,7 @@ def replicate(n, x, nf=True):
     return take(n, repeat(x, nf=nf))
 
 
-@piper
+@fx
 def product(x):
     """product of the elements for the given iterable.
 
@@ -714,7 +763,7 @@ def curry(f, *, _n=None):
     return wrapper
 
 
-# for decreasing verbosity
+# for the sake of brevity
 c_ = curry
 
 
@@ -743,14 +792,14 @@ def uncurry(f):
     """
     f = sym(f)
 
-    @piper
+    @fx
     def wrapper(x):
         return f(*x)
 
     return wrapper
 
 
-# for decreasing verbosity
+# for the sake of brevity
 u_ = uncurry
 
 
@@ -764,7 +813,7 @@ def cf_(*fs, rep=None):
     """
 
     def compose(f, g):
-        return lambda x: f(g(x))
+        return lambda *args, **kwargs: f(g(*args, **kwargs))
 
     return reduce(compose, fs * rep if rep else fs)
 
@@ -790,22 +839,26 @@ def cfd(*fs, rep=None):
 
 
 def map(f, *xs):
-    """pipefied and symbolified map.
-    this seamlessly extends 'builtins.map' with
-    symbolic function and pipe accessibility.
+    """symbol-composable 'map', which seamlessly extends 'builtins.map'
 
+    >>> (unpack . map(abs))(range(-2, 3)) | unpack
+    [2, 1, 0, 1, 2]
     >>> map(abs)(range(-2, 3)) | unpack
     [2, 1, 0, 1, 2]
+
+    >>> (unpack . map(lambda x: x*8))(range(1, 6))
+    [8, 16, 24, 32, 40]
     >>> range(1, 6) | map(lambda x: x*8) | unpack
     [8, 16, 24, 32, 40]
-    >>> map("*", [1, 2, 3], [4, 5, 6]) | unpack
+
+    >>> (unpack . map("*", [1, 2, 3]))([4, 5, 6])
     [4, 10, 18]
     >>> [4, 5, 6] | map("*", [1, 2, 3]) | unpack
     [4, 10, 18]
     """
     f = sym(f)
-    if len(xs) < nfpos(f):
-        return piper(f_(builtins.map, f, *xs))
+    if not xs or len(xs) < nfpos(f):
+        return fx(f_(builtins.map, f, *xs))
     else:
         return builtins.map(f, *xs)
 
@@ -823,43 +876,53 @@ def mapl(f, *xs):
     [4, 10, 18]
     """
     f = sym(f)
-    if len(xs) < nfpos(f):
-        return piper(cf_(list, f_(builtins.map, f, *xs)))
+    if not xs or len(xs) < nfpos(f):
+        return fx(cfd(list)(f_(builtins.map, f, *xs)))
     else:
         return cfd(list)(builtins.map)(f, *xs)
 
 
-@piper
+@fx
 def filter(p, xs):
-    """the same as 'builtins.filter', but a piper.
+    """the same as 'builtins.filter', but a composable.
 
+    >>> (unpack . filter(f_("==", "f")))("fun-on-functions")
+    ['f', 'f']
     >>> filter(f_("==", "f"))("fun-on-functions") | unpack
     ['f', 'f']
+
     >>> primes = [2, 3, 5, 7, 11, 13, 17, 19]
+    >>> (unpack . filter(lambda x: x % 3 == 2))(primes)
+    [2, 5, 11, 17]
     >>> primes | filter(cf_(ff_("==", 2), ff_("%", 3))) | unpack
     [2, 5, 11, 17]
     """
     return builtins.filter(p, xs)
 
 
-@piper
+@fx
 def filterl(p, xs):
     """the same as 'filter', but returns in 'list'.
 
     >>> filterl(f_("==", "f"))("fun-on-functions")
     ['f', 'f']
     >>> primes = [2, 3, 5, 7, 11, 13, 17, 19]
-    >>> primes | filterl(cf_(ff_("==", 2), ff_("%", 3)))
+    >>> primes | filterl(lambda x: x % 3 == 2)
     [2, 5, 11, 17]
     """
     return filter(p, xs) | unpack
 
 
-@piper
+@fx
 def zip(*xs, strict=False):
-    """the same as 'builtins.zip', but a piper.
+    """the same as 'builtins.zip', but a composable.
 
+    >>> (unpack . f_(zip, "LOVE") . range)(3)
+    [('L', 0), ('O', 1), ('V', 2)]
     >>> zip("LOVE", range(3)) | unpack
+    [('L', 0), ('O', 1), ('V', 2)]
+
+    >>> (unpack . uncurry(zip))(("LOVE", range(3),))
     [('L', 0), ('O', 1), ('V', 2)]
     >>> ("LOVE", range(3)) | uncurry(zip) | unpack
     [('L', 0), ('O', 1), ('V', 2)]
@@ -867,7 +930,7 @@ def zip(*xs, strict=False):
     return builtins.zip(*xs, strict=strict)
 
 
-@piper
+@fx
 def zipl(*xs, strict=False):
     """the same as 'zip', but returns in 'list'.
 
@@ -879,10 +942,12 @@ def zipl(*xs, strict=False):
     return zip(*xs, strict=strict) | unpack
 
 
-@piper
+@fx
 def unzip(xs):
     """reverse operation of 'zip' function.
 
+    >>> (unpack . unzip . zip)("LOVE", range(3))
+    [('L', 'O', 'V'), (0, 1, 2)]
     >>> unzip(zip("LOVE", range(3))) | unpack
     [('L', 'O', 'V'), (0, 1, 2)]
     >>> zip("LOVE", range(3)) | unzip | unpack
@@ -891,7 +956,7 @@ def unzip(xs):
     return zip(*xs)
 
 
-@piper
+@fx
 def unzipl(x):
     """the same as 'unzip', but returns in 'list'.
 
@@ -921,7 +986,7 @@ def enumeratel(*args, **kwargs):
     return enumerate(*args, **kwargs) | unpack
 
 
-@piper
+@fx
 def rev(x, *xs):
     """return reversed sequence: this exends the 'reverse' function.
     for given multiple args, it returns a reversed tuple of the arguments
@@ -958,7 +1023,7 @@ def dropwhilel(*args, **kwargs):
     return dropwhile(*args, **kwargs) | unpack
 
 
-@piper
+@fx
 def _not(x):
     """`not` as a function.
 
@@ -970,7 +1035,7 @@ def _not(x):
     return not x
 
 
-@piper
+@fx
 def _and(a, b):
     """`and` as a function.
 
@@ -982,7 +1047,7 @@ def _and(a, b):
     return a and b
 
 
-@piper
+@fx
 def _or(a, b):
     """`and` as a function.
 
@@ -994,7 +1059,7 @@ def _or(a, b):
     return a or b
 
 
-@piper
+@fx
 def _in(a, b):
     """`in` as a function.
 
@@ -1006,7 +1071,7 @@ def _in(a, b):
     return flip(op.contains)(a, b)
 
 
-@piper
+@fx
 def _is(a, b):
     """`is` as a function.
 
@@ -1018,7 +1083,7 @@ def _is(a, b):
     return op.is_(a, b)
 
 
-@piper
+@fx
 def _isnt(a, b):
     """`is not` as a function.
 
@@ -1030,7 +1095,7 @@ def _isnt(a, b):
     return op.is_not(a, b)
 
 
-@piper
+@fx
 def bimap(f, g, x):
     """map over both 'first' and 'second' arguments at the same time.
     bimap(f, g) == first(f) . second(g)
@@ -1043,7 +1108,7 @@ def bimap(f, g, x):
     return f(fst(x)), g(snd(x))
 
 
-@piper
+@fx
 def first(f, x):
     """map covariantly over the 'first' argument.
 
@@ -1055,7 +1120,7 @@ def first(f, x):
     return bimap(f, id, x)
 
 
-@piper
+@fx
 def second(g, x):
     """map covariantly over the 'second' argument.
 
@@ -1067,7 +1132,7 @@ def second(g, x):
     return bimap(id, g, x)
 
 
-@piper
+@fx
 def until(p, f, x):
     """return the result of applying the given 'f' until the given 'p' holds
 
@@ -1081,7 +1146,7 @@ def until(p, f, x):
     return x
 
 
-@piper
+@fx
 def iterate(f, x):
     """return an infinite list of repeated applications of 'f' to 'x'.
 
@@ -1106,7 +1171,7 @@ def apply(f, *args, **kwargs):
     return sym(f)(*args, **kwargs)
 
 
-@piper
+@fx
 def foldl(f, initial, xs):
     """left-associative fold of an iterable.
 
@@ -1118,7 +1183,7 @@ def foldl(f, initial, xs):
     return reduce(sym(f), xs, initial)
 
 
-@piper
+@fx
 def foldl1(f, xs):
     """`foldl` without initial value.
 
@@ -1130,7 +1195,7 @@ def foldl1(f, xs):
     return reduce(sym(f), xs)
 
 
-@piper
+@fx
 def foldr(f, inital, xs):
     """right-associative fold of an iterable.
 
@@ -1142,7 +1207,7 @@ def foldr(f, inital, xs):
     return reduce(flip(sym(f)), xs[::-1], inital)
 
 
-@piper
+@fx
 def foldr1(f, xs):
     """`foldr` without initial value.
 
@@ -1154,7 +1219,7 @@ def foldr1(f, xs):
     return reduce(flip(sym(f)), xs[::-1])
 
 
-@piper
+@fx
 def scanl(f, initial, xs):
     """return a list of successive reduced values from the left.
 
@@ -1166,7 +1231,7 @@ def scanl(f, initial, xs):
     return accumulate(xs, sym(f), initial=initial) | unpack
 
 
-@piper
+@fx
 def scanl1(f, xs):
     """`scanl` without starting value.
 
@@ -1178,7 +1243,7 @@ def scanl1(f, xs):
     return accumulate(xs, sym(f)) | unpack
 
 
-@piper
+@fx
 def scanr(f, initial, xs):
     """return a list of successive reduced values from the right.
 
@@ -1190,7 +1255,7 @@ def scanr(f, initial, xs):
     return accumulate(xs[::-1], flip(sym(f)), initial=initial) | rev
 
 
-@piper
+@fx
 def scanr1(f, xs):
     """`scanr` without starting value.
 
@@ -1202,7 +1267,7 @@ def scanr1(f, xs):
     return accumulate(xs[::-1], flip(sym(f))) | rev
 
 
-@piper
+@fx
 def capture(p, string):
     """capture"""
     x = captures(p, string)
@@ -1210,7 +1275,7 @@ def capture(p, string):
         return fst(x)
 
 
-@piper
+@fx
 def captures(p, string):
     """captures"""
     return re.compile(p).findall(string)
@@ -1258,6 +1323,7 @@ def sym(f=None):
     )
 
 
+@fx
 def permutation(x, r, rep=False):
     """return all permutations in a list form
 
@@ -1267,6 +1333,7 @@ def permutation(x, r, rep=False):
     return cprod(x, repeat=r) if rep else it.permutations(x, r)
 
 
+@fx
 def combination(x, r, rep=False):
     """return all combinations in a list form
     >>> combination("abc", 2) | unpack
@@ -1276,6 +1343,7 @@ def combination(x, r, rep=False):
     return it.combinations_with_replacement(x, r) if rep else it.combinations(x, r)
 
 
+@fx
 def cartprod(*args, **kwargs):
     """return Cartesian product.
 
@@ -1287,6 +1355,7 @@ def cartprod(*args, **kwargs):
     return f_(cprod, repeat=1)(*args, **kwargs)
 
 
+@fx
 def cartprodl(*args, **kwargs):
     """the same as 'cartprod', but returns in 'list'.
 
@@ -1298,7 +1367,7 @@ def cartprodl(*args, **kwargs):
     return cartprod(*args, **kwargs) | unpack
 
 
-@piper
+@fx
 def concat(iterable):
     """concatenates all elements of iterables.
 
@@ -1310,7 +1379,7 @@ def concat(iterable):
     return it.chain.from_iterable(iterable)
 
 
-@piper
+@fx
 def concatl(iterable):
     """the same as 'concat', but returns in 'list'.
 
@@ -1322,7 +1391,7 @@ def concatl(iterable):
     return concat(iterable) | unpack
 
 
-@piper
+@fx
 def concatmap(f, x, *xs):
     """map a function over the given iterable then concat it.
 
@@ -1334,7 +1403,7 @@ def concatmap(f, x, *xs):
     return map(f, x, *xs) | concat
 
 
-@piper
+@fx
 def concatmapl(f, x, *xs):
     """the same as 'concatmap', but returns in 'list'.
 
@@ -1346,7 +1415,7 @@ def concatmapl(f, x, *xs):
     return map(f, x, *xs) | concat | unpack
 
 
-@piper
+@fx
 def intersperse(sep, x):
     """intersperse the given element between the elements of the list.
 
@@ -1358,7 +1427,7 @@ def intersperse(sep, x):
     return concatl(zip(repeat(sep), x))[1:]
 
 
-@piper
+@fx
 def intercalate(sep, x):
     """inserts the given list between the lists then concat it.
 
@@ -1390,9 +1459,9 @@ def flatten(*args):
     return go(args)
 
 
-@piper
+@fx
 def flat(*args):
-    """the same as 'flatten', but a 'piper'.
+    """the same as 'flatten', but a 'composable'.
 
     >>> flat([1, [(2,), [[{3}, (x for x in range(3))]]]]) | unpack
     [1, 2, 3, 0, 1, 2]
@@ -1403,7 +1472,7 @@ def flat(*args):
     return flatten(*args)
 
 
-@piper
+@fx
 def flatl(*args):
     """the same as 'flat', but returns in 'list'.
 
@@ -1419,13 +1488,13 @@ def flatl(*args):
 lazy = f_
 
 
-@piper
+@fx
 def force(expr):
     """forces the delayed-expression to be fully evaluated."""
     return expr() if callable(expr) else expr
 
 
-@piper
+@fx
 def mforce(iterables):
     """map 'force' over iterables of delayed-evaluation."""
     return mapl(force)(iterables)
@@ -1455,14 +1524,12 @@ def writer(f=None, mode="w", zipf=False):
     )
 
 
-@piper
 def split_at(ix, x):
     """split the given iterable 'x' at the given splitting-indices 'ix'."""
     s = flatl(0, ix, None)
     return ([*it.islice(x, begin, end)] for begin, end in zip(s, s[1:]))
 
 
-@piper
 def chunks_of(n, x, fillvalue=None, fill=True):
     """split interables into the given `n'-length pieces"""
     if not fill:
@@ -1494,7 +1561,6 @@ def HOME():
     return os.getenv("HOME")
 
 
-@piper
 def cd(path=None):
     """change directories: similar to the shell-command 'cd'."""
     if path:
@@ -1509,7 +1575,6 @@ def pwd():
     return os.getcwd()
 
 
-@piper
 def normpath(path, abs=False):
     """normalize the given filepath"""
     return cf_(
@@ -1519,7 +1584,6 @@ def normpath(path, abs=False):
     )(path)
 
 
-@piper
 def exists(path, kind=None):
     """check if the given filepath (file or directory) is available."""
     path = normpath(path)
@@ -1531,7 +1595,6 @@ def exists(path, kind=None):
         return os.path.exists(path)
 
 
-@piper
 def dirname(*args, prefix=False, abs=False):
     if len(args) > 1:
         args = [normpath(a, abs=True) for a in args]
@@ -1542,19 +1605,16 @@ def dirname(*args, prefix=False, abs=False):
         return d if d else "."
 
 
-@piper
 def basename(path):
     return cf_(os.path.basename, normpath)(path)
 
 
-@piper
 def mkdir(path, mode=0o755):
     path = normpath(path)
     os.makedirs(path, mode=mode, exist_ok=True)
     return path
 
 
-@piper
 def rmdir(path, rm_rf=False):
     path = normpath(path)
     if rm_rf:
@@ -1563,7 +1623,6 @@ def rmdir(path, rm_rf=False):
         os.removedirs(path)
 
 
-@piper
 def ls(*paths, grep=None, i=False, r=False, f=False, d=False, g=False, _root=True):
     """list directory contents: just like 'ls -a1'.
 
@@ -1622,10 +1681,10 @@ def grep(regex, *, i=False):
     >>> grep(r".json$", i=True)([".json", "Jason", ".JSON", "jsonl", "JsonL"])
     ['.json', '.JSON']
     """
-    return piper(filterl(f_(re.search, regex, flags=re.IGNORECASE if i else 0)))
+    return fx(filterl(f_(re.search, regex, flags=re.IGNORECASE if i else 0)))
 
 
-@piper
+@fx
 def echo(*xs, n=True):
     """echo: display a line of text
 
@@ -1637,7 +1696,7 @@ def echo(*xs, n=True):
     return unwords([str(o) for o in xs]) + ("\n" if n else "")
 
 
-@piper
+@fx
 def tee(f, s, a=False):
     def fwrite(f, x, a=a):
         writer(f, mode="a" if a else "w").write(x)
@@ -1646,7 +1705,7 @@ def tee(f, s, a=False):
     return cf_(f_(fwrite, f, a=a), f_(echo, n=True))(s)
 
 
-@piper
+@fx
 def split(f, /, nbytes, prefix):
     """split a file into multiple parts of specified byte-size like:
     $ split -b bytes f prefix_
@@ -1664,35 +1723,29 @@ def split(f, /, nbytes, prefix):
         n += 1
 
 
-@piper
 def bytes_to_int(x, byteorder="big"):
     return int.from_bytes(x, byteorder=byteorder)
 
 
-@piper
 def int_to_bytes(x, size=None, byteorder="big"):
     if size is None:
         size = (x.bit_length() + 7) // 8
     return x.to_bytes(size, byteorder=byteorder)
 
 
-@piper
 def bytes_to_bin(x, sep=""):
     return sep.join(f"{b:08b}" for b in x)
 
 
-@piper
 def bin_to_bytes(x):
     return int_to_bytes(int(x, base=2))
 
 
-@piper
 def randbytes(n):
     """generate cryptographically secure random bytes"""
     return os.urandom(n)
 
 
-@piper
 def rand(x=None, high=None, size=None):
     return (
         [rd.uniform(x, high) for _ in range(size)]  # #args == 3
@@ -1705,7 +1758,6 @@ def rand(x=None, high=None, size=None):
     )
 
 
-@piper
 def randn(mu=0, sigma=1, size=None):
     return (
         [rd.gauss(mu, sigma) for _ in range(size)]
@@ -1714,7 +1766,6 @@ def randn(mu=0, sigma=1, size=None):
     )
 
 
-@piper
 def randint(x=None, high=None, size=None):
     """generate random integer cryptographically secure and faster than numpy's.
     return random integer(s) in range of [low, high)
@@ -1736,7 +1787,7 @@ def randint(x=None, high=None, size=None):
     )
 
 
-@piper
+@fx
 def shuffle(x):
     """Fisher-Yates shuffle in a cryptographically secure way"""
     for i in range(len(x) - 1, 0, -1):
@@ -1745,7 +1796,7 @@ def shuffle(x):
     return x
 
 
-@piper
+@fx
 def choice(x, size=None, *, replace=False, p=None):
     """Generate a sample with/without replacement from a given iterable."""
 
@@ -1779,7 +1830,7 @@ def choice(x, size=None, *, replace=False, p=None):
         ]
 
 
-@piper
+@fx
 class dmap(dict):
     """dot-accessible dict(map) using DWIM"""
 
@@ -1857,7 +1908,7 @@ def thread(daemon=False):
 def proc(daemon=False):
     """decorator factory that turns functions into multiprocessing.Process.
 
-    >>> ps = [proc(True)(bruteforce)(x) for x in xs]  # doctest: +SKIP
+    >>> ps = [proc(True)(bruteforce)(x) for x in xs]     # doctest: +SKIP
     >>> for p in ps: p.start()                           # doctest: +SKIP
     >>> for p in ps: p.join()                            # doctest: +SKIP
     """
@@ -1903,7 +1954,7 @@ class polling:
             self.t.cancel()
 
 
-@piper
+@fx
 def shell(cmd, sync=True, o=True, *, executable="/bin/bash"):
     """execute shell commands [sync|async]hronously and capture its outputs.
 
@@ -1941,7 +1992,7 @@ def shell(cmd, sync=True, o=True, *, executable="/bin/bash"):
         sh(stdout=o)
 
 
-@piper
+@fx
 def pbcopy(x):
     Popen("pbcopy", stdin=PIPE).communicate(x.encode())
 
@@ -2022,7 +2073,7 @@ def neatly(x, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
         return (repr if _repr else str)(x)
 
 
-@piper
+@fx
 def nprint(x, *, _cols=None, _width=10000, _repr=True, **kwargs):
     """neatly print data structures of 'dict' and 'list' using `neatly`."""
     print(neatly(x, _cols=_cols, _width=_width, _repr=_repr, **kwargs))
@@ -2116,24 +2167,20 @@ def __sig__(xs):
     return dmap({x: x + sig(eval(x)) for x in xs})
 
 
-def catalog(*, piper=False, dict=False):
+def catalog(*, fx=False, dict=False):
     """display/get the list of functions available."""
-    o = __sig__(pipers() if piper else __all__)
+    o = __sig__(lsfx() if fx else __all__)
     if dict:
         return o
     else:
         nprint(o, _cols=14, _repr=False)
 
 
-def piperp(k):
-    return k in pipers()
-
-
-def pipers():
+def lsfx():
     return [
         key
         for key, o in sort(sys.modules[__name__].__dict__.items())
-        if callable(o) and hasattr(o, "_pipefied")
+        if callable(o) and isinstance(o, composable)
     ]
 
 
@@ -2144,17 +2191,17 @@ uniq = nub
 unpack = chars
 xargs = uncurry
 zipwith = mapl
-sort = piper(sorted)
-reverse = piper(reversed)
-length = piper(len)
-abs = piper(abs)
-sum = piper(sum)
-min = piper(min)
-max = piper(max)
-ord = piper(ord)
-chr = piper(chr)
-all = piper(all)
-any = piper(any)
+sort = fx(sorted)
+reverse = fx(reversed)
+length = fx(len)
+abs = fx(abs)
+sum = fx(sum)
+min = fx(min)
+max = fx(max)
+ord = fx(ord)
+chr = fx(chr)
+all = fx(all)
+any = fx(any)
 
 
 sys.setrecursionlimit(5000)
