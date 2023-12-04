@@ -121,3 +121,6 @@
 - Replace `piper` with `composable`: composition of functions by symbol
 - Fix: Quick start
 - Add more documentation on functions
+
+# 0.4.1
+- Fix `neatly` and `nprint`: bugs in the defaults

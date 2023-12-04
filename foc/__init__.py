@@ -21,7 +21,7 @@ from subprocess import DEVNULL, PIPE, STDOUT, Popen
 from textwrap import fill
 from threading import Thread, Timer
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 __all__ = [
     "composable",
@@ -2014,7 +2014,7 @@ def timer(t, msg="", quiet=False):
     writer().write("\033[K")
 
 
-def neatly(x, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
+def neatly(x={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
     """create neatly formatted string for data structure of 'dict' and 'list'."""
 
     def indent(x, i):
@@ -2074,7 +2074,7 @@ def neatly(x, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
 
 
 @fx
-def nprint(x, *, _cols=None, _width=10000, _repr=True, **kwargs):
+def nprint(x={}, *, _cols=None, _width=10000, _repr=True, **kwargs):
     """neatly print data structures of 'dict' and 'list' using `neatly`."""
     print(neatly(x, _cols=_cols, _width=_width, _repr=_repr, **kwargs))
 

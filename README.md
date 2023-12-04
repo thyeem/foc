@@ -11,7 +11,7 @@ Functions from the `Python` standard library are great. But some notations are a
 ## Tl;dr
 
 - `foc` provides a collection of ___higher-order functions___, some helpful (_pure_) _functions_.
-- `foc` provides an easy way to ___compose functions by symobl___. (`.` and `|`)
+- `foc` provides an easy way to ___compose functions with symbol___. (`.` and `|`)
 - `foc` respects the `python` standard library. _Never reinvented the wheel_.
 
 
@@ -74,7 +74,7 @@ False
 [5, 6, 7]
 ```
 
-`foc` just adds ways to __compose functions by symbols__
+`foc` just adds ways to __compose functions with symbols__
 | symbol          | description                     | evaluation order | Available functions            |
 |-----------------|---------------------------------|------------------|--------------------------------|
 | `.` (dot)       | same as the mathematical symbol | backwards        | all _globals_, all _built-ins_ |
@@ -463,7 +463,7 @@ See also `uncurry`
 
 ### Seamlessly extends: `map`, `filter` and `zip`
 - Extend usability while _maintaining full compatibility_
-- _No harm_ to existing usage. Just __added ways to compose function by symbols__
+- _No harm_ to existing usage. Just __added ways to compose function with symbols__
 
 > `map(f, *xs)`   
 > `mapl(f, *xs)`
@@ -675,7 +675,7 @@ def func(*args, **kwargs):
 >>> output = "ls -1 ~" | shell           # the same
 
 >>> shell("find . | sort" o=-1)          # run and discard the result  
->>> "find . | sort") | shell(o=-1)    
+>>> "find . | sort" | shell(o=-1)    
 
 >>> shell("cat *.md", o=writer(FILE))    # redirect to FILE
 >>> "cat *.md" | shell(o=writer(FILE))   # redirect to FILE
