@@ -54,12 +54,13 @@ Let's pick lottery numbers. That is to pick 6 numbers from 1 to 45. _The Lotto_ 
  [17, 21, 24, 32, 41, 43],
  [5, 9, 13, 25, 30, 38]]
 
-# Or equivalently, 
-# Feel Unix pipelines
->>> replicate(5, range(1, 46)) | map(choice(size=6)) | map(sort) | unpack
+>>> gumballs = replicate(5, range(1, 46))     # 5-set of gumballs
 
-# Feel Haskell-like mathematical symbol
->>> (unpack . map(sort . fx(choice(size=6))))(replicate(5, range(1, 46)))
+# in Unix pipelines manner
+>>> gumballs | map(choice(size=6)) | map(sort) | collect
+
+# with Haskell-like mathematical symbol
+>>> (collect . map(sort . fx(choice(size=6))))(gumballs)
 ```
 
 The functions `foc` provides are not particularly different. Exactly, it look like normal functions.  
@@ -85,13 +86,13 @@ False
 >>> (length . range)(10)
 10
 
->>> (unpack . filter(even) . range)(10)  # 'unpack' unpacks generators
+>>> (collect . filter(even) . range)(10)  # 'collect' unpacks generators
 [0, 2, 4, 6, 8]
 
->>> (sum . map(f_("+", 5)) . range)(10)  # f_("+", 5) == lambda x: x+5
+>>> (sum . map(f_("+", 5)) . range)(10)   # f_("+", 5) == lambda x: x+5
 95
 
->>> (last . sort . shuffle . unpack . range)(11)
+>>> (last . sort . shuffle . collect . range)(11)
 10
 ```
 
@@ -106,7 +107,7 @@ In those case, __just wrap them in `fx`__.
 ```python
 >>> (fx(lambda x: x+2) . fx(lambda x: x*8))(5)    # don't. fx(lambda *args, **kwargs: ...)
 42
->>> (fx() . (f_("+", 2)) . f_("*", 8))(5)         # isn't it better?
+>>> (id . f_("+", 2) . f_("*", 8))(5)             # isn't it better?
 42
 
 >>> (sum . fx(partial(map, lambda x: x+5)))(range(5))   # don't partial(map, lambada ...)
@@ -117,7 +118,7 @@ In those case, __just wrap them in `fx`__.
 >>> (unchars . map(chr))(range(73, 82))
 'IJKLMNOPQ'
 
->>> (unpack . map(pred . succ) . range)(5)
+>>> (collect . map(pred . succ) . range)(5)
 [0, 1, 2, 3, 4]
 ```
 But, it's very tedious work wrapping partial `map` in `fx` every time. Thus, `f_`, `ff_`, `curry`, `uncurry`, `map`, and `filter` have been processed __so that they can be used without `fx`__. 
@@ -128,10 +129,10 @@ But, it's very tedious work wrapping partial `map` in `fx` every time. Thus, `f_
 >>> range(10) | length
 10
 
->>> range(10) | filter(even) | unpack    # 'unpack' unpacks generators
+>>> range(10) | filter(even) | collect    # 'collect' unpacks generators
 [0, 2, 4, 6, 8]
 
->>> range(10) | map(f_("+", 5)) | sum    # f_("+", 5) == lambda x: x+5
+>>> range(10) | map(f_("+", 5)) | sum     # f_("+", 5) == lambda x: x+5
 95
 
 >>> rangel(11) | shuffle | sort | last
@@ -192,19 +193,19 @@ These are part of the _symbol-composable_ functions `foc` provides.
 >>> take(3, range(5, 10))
 [5, 6, 7]
 
->>> drop(3, "github") | unpack 
+>>> drop(3, "github") | collect 
 ['h', 'u', 'b']
 
->>> head(range(1,5))             # return 'None' when []
+>>> head(range(1,5))              # returns 'None' when []
 1
 
->>> last(range(1,5))             # return 'None' when []
+>>> last(range(1,5))              # returns 'None' when []
 4
 
->>> init(range(1,5)) | unpack    # return [] when []
+>>> init(range(1,5)) | collect    # returns [] when []
 [1, 2, 3]
 
->>> tail(range(1,5)) | unpack    # return [] when []
+>>> tail(range(1,5)) | collect    # returns [] when []
 [2, 3, 4]
 
 >>> pair("sofia", "maria")
@@ -414,8 +415,8 @@ where the given function's arguments partially evaluation _from the right_.
 -3                   # 2 - 5
 ```
 
-### Build curried functions: `c_` and `cc_`
-When currying a given function, 
+### Build curried functions: `c_` (`curry`) and `cc_`
+- `c_` is an alias for `curry`
 - `c_` takes the function's arguments _from the left_ 
 - while `cc_` takes them _from the right_.
 
@@ -439,6 +440,28 @@ See also `uncurry`
 >>> cc_("-")(5)(2)   # 2 - 5
 -3
 ```
+
+### Build unary functions on a tuple: `u_` (`uncurry`)
+- `u_` is an alias for `uncurry`
+- `u_` converts a _normal function_ to __a unary function that takes a tuple of arguments__ only
+- `uncurry :: (a -> ... -> b -> o) -> (a, ..., b) -> o`
+
+```python
+>>> uncurry(pow)((2, 10))    # pow(2, 10)
+1024
+
+>>> (2, 3) | uncurry("+")    # 2 + 3 or (+) 2 3 
+5
+
+>>> ([1, 3], [2, 4]) | uncurry(zip) | collect    # collect(zip([1, 3], [2, 4]))
+[(1, 2), (3, 4)]
+
+>>> (collect . uncurry(zip))(([1,3], [2,4],))     # the same
+[(1, 2), (3, 4)]
+```
+
+
+
 
 ### Build composition of functions: `cf_` and `cfd`
 - `cf_` (_composition of function_) composes functions using the given list of functions. 
@@ -465,37 +488,37 @@ See also `uncurry`
 - Extend usability while _maintaining full compatibility_
 - _No harm_ to existing usage. Just __added ways to compose function with symbols__
 
-> `map(f, *xs)`   
-> `mapl(f, *xs)`
+> `map(fn, *xs)`   
+> `mapl(fn, *xs)`  
 ```python
->>> (unpack . map(abs))(range(-2, 3)) | unpack
+>>> (collect . map(abs))(range(-2, 3)) 
 [2, 1, 0, 1, 2]
->>> map(abs)(range(-2, 3)) | unpack
+>>> map(abs)(range(-2, 3)) | collect
 [2, 1, 0, 1, 2]
 
->>> (unpack . map(lambda x: x*8))(range(1, 6))
+>>> (collect . map(lambda x: x*8))(range(1, 6))
 [8, 16, 24, 32, 40]
->>> range(1, 6) | map(lambda x: x*8) | unpack
+>>> range(1, 6) | map(lambda x: x*8) | collect
 [8, 16, 24, 32, 40]
 
->>> (unpack . map("*", [1, 2, 3]))([4, 5, 6])
+>>> (collect . map("*", [1, 2, 3]))([4, 5, 6])
 [4, 10, 18]
->>> [4, 5, 6] | map("*", [1, 2, 3]) | unpack
+>>> [4, 5, 6] | map("*", [1, 2, 3]) | collect
 [4, 10, 18]
 ```
 
 > `filter(p, xs)`  
 > `filterl(p, xs)`
 ```python
->>> (unpack . filter(f_("==", "f")))("fun-on-functions")
+>>> (collect . filter(f_("==", "f")))("fun-on-functions")
 ['f', 'f']
->>> filter(f_("==", "f"))("fun-on-functions") | unpack
+>>> filter(f_("==", "f"))("fun-on-functions") | collect
 ['f', 'f']
 
 >>> primes = [2, 3, 5, 7, 11, 13, 17, 19]
->>> (unpack . filter(lambda x: x % 3 == 2))(primes)
+>>> (collect . filter(lambda x: x % 3 == 2))(primes)
 [2, 5, 11, 17]
->>> primes | filter(cf_(ff_("==", 2), ff_("%", 3))) | unpack
+>>> primes | filter(cf_(ff_("==", 2), ff_("%", 3))) | collect
 [2, 5, 11, 17]
 ```
 
@@ -503,14 +526,14 @@ See also `uncurry`
 > `zipl(*xs, strict=False)`  
 
 ```python
->>> (unpack . f_(zip, "LOVE") . range)(3)
+>>> (collect . f_(zip, "LOVE") . range)(3)
 [('L', 0), ('O', 1), ('V', 2)]
->>> zip("LOVE", range(3)) | unpack
+>>> zip("LOVE", range(3)) | collect
 [('L', 0), ('O', 1), ('V', 2)]
 
->>> (unpack . uncurry(zip))(("LOVE", range(3),))
+>>> (collect . uncurry(zip))(("LOVE", range(3),))
 [('L', 0), ('O', 1), ('V', 2)]
->>> ("LOVE", range(3)) | uncurry(zip) | unpack
+>>> ("LOVE", range(3)) | uncurry(zip) | collect
 [('L', 0), ('O', 1), ('V', 2)]
 ```
 
@@ -519,9 +542,9 @@ See also `uncurry`
 - `force` forces the deferred-expression to be fully evaluated when needed.
   > it reminds `Haskell`'s `force x = deepseq x x`.
 
-> `lazy(function-name, *args, **kwargs)`  
-> `force(expr)`  
-> `mforce([expr])`  
+> `lazy(fn, *args, **kwargs)`  
+> `force(EXPR)`  
+> `mforce([EXPR])`  
 
 ```python
 # strictly generate a random integer between [1, 10)
@@ -637,21 +660,31 @@ def func(*args, **kwargs):
 
 
 ## Utilities
-### Normalize containers: `flat`
-`flat` flattens all kinds of iterables except for _string-like object_ (`str`, `bytes`).
+### Flatten iterables: `flat` and `flatten`
+
+`flat` completely removes all nesting levels. (_deep flatten_)  
+`flatten`, on the other hand, reduces the nesting depth by the given level. (_swallow flatten_)  
+_String-like iterables_ such as `str`, `bytes`, and `bytearray` are not flattened.
+
 
 > `flat(*args)`   
-> `flatl(*args)`
+> `flatl(*args)`  
+> `flatten(ITERABLE, d=LEVEL)`  
 
 ```python
-# Assume that we regenerate 'data' every time in the examples below
 >>> data = [1,2,[3,4,[[[5],6],7,{8},((9),10)],range(11,13)], (x for x in [13,14,15])]
 
->>> flatl(data)    
+>>> flat(data) | collect    
 [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
-# regardless of the number of arguments
->>> flatl(1,[2,{3}],[[[[[4]],5]]], "sofia", "maria")
+>>> data = [1, [[2,{3}]], [[[[4]],5]], (('sofia','maria'),)]  
+>>> flatten(data)  # by default, d=1
+[1, [2, {3}], [[[4]], 5], ('sofia', 'maria')]
+
+>>> flatten(data d=2) 
+[1, 2, {3}, [[4]], 5, 'sofia', 'maria']
+
+>>> flatl(data)    # flatl(data) == flat(data) | collect  
 [1, 2, 3, 4, 5, 'sofia', 'maria']
 ```
 ### Shell Command: `shell`
@@ -700,9 +733,8 @@ def func(*args, **kwargs):
 ...     }
 ...   }
 ... }
+
 >>> nprint(o)
-```
-```
        $id  |  'https://example.com/enumerated-values.schema.json'
    $schema  |  'https://json-schema.org/draft/2020-12/schema'
 properties  |  data  |  enum  +  42
@@ -723,8 +755,11 @@ properties  |  data  |  enum  +  42
 
 ```python
 >>> d = dmap()    # empty dict
->>> d = dmap(dict(...))
->>> d = dmap(name="yunchan lim", age=19, profession="pianist")    # or dmap({"name":.., "age":..,})
+
+>>> o = dict(name="yunchan lim", age=19)
+>>> d = dmap(o, profession="pianist")    
+
+>>> d = dmap(name="yunchan lim", age=19, profession="pianist")    # the same
 
 # just put the value in the desired keypath
 >>> d.cliburn.semifinal.mozart = "piano concerto no.22"
@@ -732,8 +767,6 @@ properties  |  data  |  enum  +  42
 >>> d.cliburn.final.beethoven = "piano concerto no.3"
 >>> d.cliburn.final.rachmaninoff = "piano concerto no.3"
 >>> nprint(d)
-```
-```
        age  |  19
    cliburn  |      final  |     beethoven  |  'piano concerto no.3'
             :             :  rachmaninoff  |  'piano concerto no.3'
@@ -746,8 +779,6 @@ profession  |  'pianist'
 >>> del d.cliburn.semifinal
 >>> d.profession = "one-in-a-million talent"
 >>> nprint(d)
-```
-```
        age  |  19
    cliburn  |  final  |     beethoven  |  'piano concerto no.3'
             :         :  rachmaninoff  |  'piano concerto no.3'
@@ -838,13 +869,12 @@ _See also_: `HOME`, `cd`, `pwd`, `mkdir`, `rmdir`, `exists`, `dirname`, and `bas
   > `taskbar` use `pip`'s bundle. `pip` is already installed almost everywhere.
 - Fixed to default _`tqdm`-like bar style_
 - _Simplified further_ the `rich.progress`'s usage
-  > Use `taskbar` only instead of `Progress()` and `track()`.
 
 > `taskbar(x=None, desc="working", *, start=0, total=None, barcolor="white", **kwargs)`  
 > _See also_: `rich.progress.Progress(.., **kwargs)`
 
 ```python
-# simply with iterables (or generator with 'total' length)
+# simply with iterables (or generators with 'total=LENGTH')
 >>> for _ in taskbar(range(100), "[cyan] training model"):
 ...    ...   
  training model  100%  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  100/100  0:00:20 < 0:00:00  4.94 it/s

@@ -8,6 +8,7 @@ import sys
 import time
 import zipfile
 from collections import deque
+from collections.abc import Iterable, Iterator
 from datetime import datetime, timedelta
 from functools import lru_cache, partial, reduce, wraps
 from glob import glob
@@ -21,7 +22,7 @@ from subprocess import DEVNULL, PIPE, STDOUT, Popen
 from textwrap import fill
 from threading import Thread, Timer
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 __all__ = [
     "composable",
@@ -119,6 +120,8 @@ __all__ = [
     "concatmapl",
     "intersperse",
     "intercalate",
+    "collect",
+    "flatten",
     "flat",
     "flatl",
     "lazy",
@@ -173,9 +176,8 @@ __all__ = [
     "taskbar",
     "nfpos",
     "catalog",
-    "rev",
+    "lsfx",
     "uniq",
-    "unpack",
     "xargs",
     "zipwith",
     "sort",
@@ -213,21 +215,21 @@ class composable:
     >>> range(10) | length
     10
 
-    >>> (unpack . filter(even) . range)(10)
+    >>> (collect . filter(even) . range)(10)
     [0, 2, 4, 6, 8]
-    >>> range(10) | filter(even) | unpack
+    >>> range(10) | filter(even) | collect
     [0, 2, 4, 6, 8]
 
-    >>> (unpack . map(pred . succ) . range)(5)
+    >>> (collect . map(pred . succ) . range)(5)
     [0, 1, 2, 3, 4]
     >>> (sum . map(f_("+", 5)) . range)(10)
     95
     >>> range(10) | map(f_("+", 5)) | sum
     95
 
-    >>> (last . sort . shuffle . unpack . range)(11)
+    >>> (last . sort . shuffle . collect . range)(11)
     10
-    >>> range(11) | unpack | shuffle | sort | last
+    >>> range(11) | collect | shuffle | sort | last
     10
 
     >>> (unchars . map(chr))(range(73, 82))
@@ -258,7 +260,7 @@ class composable:
 
     def __getattr__(self, key):
         g = globals().get(key, getattr(builtins, key, None))
-        guard(callable(g), f"fx, no such callable: {key}", e=AttributeError)
+        guard(callable(g), f"fx: no such callable: {key}", e=AttributeError)
         if capture(r"\bcomposable|fx\b", key):
             return lambda g: fx(cf_(self.f, g))
         if capture(r"\bf_|ff_|c_|cc_|u_|curry|uncurry|mapl?|filterl?\b", key):
@@ -390,10 +392,10 @@ def take(n, x):
 
     >>> take(3, range(5, 10))
     [5, 6, 7]
-    >>> range(5, 10) | take(3) | unpack
+    >>> range(5, 10) | take(3) | collect
     [5, 6, 7]
     """
-    return islice(x, n) | unpack
+    return islice(x, n) | collect
 
 
 @fx
@@ -402,7 +404,7 @@ def drop(n, x):
 
     >>> list(drop(3, 'github'))
     ['h', 'u', 'b']
-    >>> 'github' | drop(3) | unpack
+    >>> 'github' | drop(3) | collect
     ['h', 'u', 'b']
     """
     return islice(x, n, None)
@@ -428,7 +430,7 @@ def tail(x):
 
     >>> list(tail(range(1, 5)))
     [2, 3, 4]
-    >>> range(1, 5) | tail | unpack
+    >>> range(1, 5) | tail | collect
     [2, 3, 4]
     """
     return drop(1, x)
@@ -441,7 +443,7 @@ def init(x):
 
     >>> list(init(range(1, 5)))
     [1, 2, 3]
-    >>> range(1, 5) | init | unpack
+    >>> range(1, 5) | init | collect
     [1, 2, 3]
     """
     it = iter(x)
@@ -639,7 +641,7 @@ def elem(x, xs):
 
 @fx
 def not_elem(x, xs):
-    """the negation of 'elem'.
+    """the negation of 'elem'. The same as `_not . elem`.
 
     >>> not_elem("fun", "functions")
     False
@@ -658,7 +660,7 @@ def nub(x):
     >>> "3333-13-1111111" | nub
     ['3', '-', '1']
     """
-    return dict.fromkeys(x) | unpack
+    return list(dict.fromkeys(x))
 
 
 @fx
@@ -779,15 +781,14 @@ def cc_(f):
 
 
 def uncurry(f):
-    """convert a uncurried normal function to a unary function of a tuple args.
-    This is not exact reverse operation of `curry`. Here `uncurry` simply does:
+    """convert a normal function to a unary function on a tuple of arguments.
     `uncurry :: (a -> ... -> b -> o) -> (a, ..., b) -> o`
 
     >>> uncurry(pow)((2, 10))
     1024
     >>> (2, 3) | uncurry("+")
     5
-    >>> ([1, 3], [2, 4]) | uncurry(zip) | unpack
+    >>> ([1, 3], [2, 4]) | uncurry(zip) | collect
     [(1, 2), (3, 4)]
     """
     f = sym(f)
@@ -841,19 +842,19 @@ def cfd(*fs, rep=None):
 def map(f, *xs):
     """symbol-composable 'map', which seamlessly extends 'builtins.map'
 
-    >>> (unpack . map(abs))(range(-2, 3)) | unpack
+    >>> (collect . map(abs))(range(-2, 3)) | collect
     [2, 1, 0, 1, 2]
-    >>> map(abs)(range(-2, 3)) | unpack
+    >>> map(abs)(range(-2, 3)) | collect
     [2, 1, 0, 1, 2]
 
-    >>> (unpack . map(lambda x: x*8))(range(1, 6))
+    >>> (collect . map(lambda x: x*8))(range(1, 6))
     [8, 16, 24, 32, 40]
-    >>> range(1, 6) | map(lambda x: x*8) | unpack
+    >>> range(1, 6) | map(lambda x: x*8) | collect
     [8, 16, 24, 32, 40]
 
-    >>> (unpack . map("*", [1, 2, 3]))([4, 5, 6])
+    >>> (collect . map("*", [1, 2, 3]))([4, 5, 6])
     [4, 10, 18]
-    >>> [4, 5, 6] | map("*", [1, 2, 3]) | unpack
+    >>> [4, 5, 6] | map("*", [1, 2, 3]) | collect
     [4, 10, 18]
     """
     f = sym(f)
@@ -886,15 +887,15 @@ def mapl(f, *xs):
 def filter(p, xs):
     """the same as 'builtins.filter', but a composable.
 
-    >>> (unpack . filter(f_("==", "f")))("fun-on-functions")
+    >>> (collect . filter(f_("==", "f")))("fun-on-functions")
     ['f', 'f']
-    >>> filter(f_("==", "f"))("fun-on-functions") | unpack
+    >>> filter(f_("==", "f"))("fun-on-functions") | collect
     ['f', 'f']
 
     >>> primes = [2, 3, 5, 7, 11, 13, 17, 19]
-    >>> (unpack . filter(lambda x: x % 3 == 2))(primes)
+    >>> (collect . filter(lambda x: x % 3 == 2))(primes)
     [2, 5, 11, 17]
-    >>> primes | filter(cf_(ff_("==", 2), ff_("%", 3))) | unpack
+    >>> primes | filter(cf_(ff_("==", 2), ff_("%", 3))) | collect
     [2, 5, 11, 17]
     """
     return builtins.filter(p, xs)
@@ -910,21 +911,21 @@ def filterl(p, xs):
     >>> primes | filterl(lambda x: x % 3 == 2)
     [2, 5, 11, 17]
     """
-    return filter(p, xs) | unpack
+    return filter(p, xs) | collect
 
 
 @fx
 def zip(*xs, strict=False):
     """the same as 'builtins.zip', but a composable.
 
-    >>> (unpack . f_(zip, "LOVE") . range)(3)
+    >>> (collect . f_(zip, "LOVE") . range)(3)
     [('L', 0), ('O', 1), ('V', 2)]
-    >>> zip("LOVE", range(3)) | unpack
+    >>> zip("LOVE", range(3)) | collect
     [('L', 0), ('O', 1), ('V', 2)]
 
-    >>> (unpack . uncurry(zip))(("LOVE", range(3),))
+    >>> (collect . uncurry(zip))(("LOVE", range(3),))
     [('L', 0), ('O', 1), ('V', 2)]
-    >>> ("LOVE", range(3)) | uncurry(zip) | unpack
+    >>> ("LOVE", range(3)) | uncurry(zip) | collect
     [('L', 0), ('O', 1), ('V', 2)]
     """
     return builtins.zip(*xs, strict=strict)
@@ -939,18 +940,18 @@ def zipl(*xs, strict=False):
     >>> ("LOVE", range(3)) | uncurry(zipl)
     [('L', 0), ('O', 1), ('V', 2)]
     """
-    return zip(*xs, strict=strict) | unpack
+    return zip(*xs, strict=strict) | collect
 
 
 @fx
 def unzip(xs):
     """reverse operation of 'zip' function.
 
-    >>> (unpack . unzip . zip)("LOVE", range(3))
+    >>> (collect . unzip . zip)("LOVE", range(3))
     [('L', 'O', 'V'), (0, 1, 2)]
-    >>> unzip(zip("LOVE", range(3))) | unpack
+    >>> unzip(zip("LOVE", range(3))) | collect
     [('L', 'O', 'V'), (0, 1, 2)]
-    >>> zip("LOVE", range(3)) | unzip | unpack
+    >>> zip("LOVE", range(3)) | unzip | collect
     [('L', 'O', 'V'), (0, 1, 2)]
     """
     return zip(*xs)
@@ -965,25 +966,25 @@ def unzipl(x):
     >>> zip("LOVE", range(3)) | unzipl
     [('L', 'O', 'V'), (0, 1, 2)]
     """
-    return unzip(x) | unpack
+    return unzip(x) | collect
 
 
 def rangel(*args, **kwargs):
     """the same as 'range', but returns in 'list'.
 
-    >>> rangel(10) == range(10) | unpack
+    >>> rangel(10) == range(10) | collect
     True
     """
-    return range(*args, **kwargs) | unpack
+    return range(*args, **kwargs) | collect
 
 
 def enumeratel(*args, **kwargs):
     """the same as 'enumerate', but returns in 'list'.
 
-    >>> enumeratel(range(10)) == enumerate(range(10)) | unpack
+    >>> enumeratel(range(10)) == enumerate(range(10)) | collect
     True
     """
-    return enumerate(*args, **kwargs) | unpack
+    return enumerate(*args, **kwargs) | collect
 
 
 @fx
@@ -1011,7 +1012,7 @@ def takewhilel(*args, **kwargs):
     >>> takewhilel(even, [2, 4, 6, 1, 3, 5])
     [2, 4, 6]
     """
-    return takewhile(*args, **kwargs) | unpack
+    return takewhile(*args, **kwargs) | collect
 
 
 def dropwhilel(*args, **kwargs):
@@ -1020,7 +1021,7 @@ def dropwhilel(*args, **kwargs):
     >>> dropwhilel(even, [2, 4, 6, 1, 3, 5])
     [1, 3, 5]
     """
-    return dropwhile(*args, **kwargs) | unpack
+    return dropwhile(*args, **kwargs) | collect
 
 
 @fx
@@ -1228,7 +1229,7 @@ def scanl(f, initial, xs):
     >>> range(1, 5) | scanl("-", 10)
     [10, 9, 7, 4, 0]
     """
-    return accumulate(xs, sym(f), initial=initial) | unpack
+    return accumulate(xs, sym(f), initial=initial) | collect
 
 
 @fx
@@ -1240,7 +1241,7 @@ def scanl1(f, xs):
     >>> range(1, 5) | scanl1("-")
     [1, -1, -4, -8]
     """
-    return accumulate(xs, sym(f)) | unpack
+    return accumulate(xs, sym(f)) | collect
 
 
 @fx
@@ -1327,7 +1328,7 @@ def sym(f=None):
 def permutation(x, r, rep=False):
     """return all permutations in a list form
 
-    >>> permutation("abc", 2) | unpack
+    >>> permutation("abc", 2) | collect
     [('a', 'b'), ('a', 'c'), ('b', 'a'), ('b', 'c'), ('c', 'a'), ('c', 'b')]
     """
     return cprod(x, repeat=r) if rep else it.permutations(x, r)
@@ -1336,7 +1337,7 @@ def permutation(x, r, rep=False):
 @fx
 def combination(x, r, rep=False):
     """return all combinations in a list form
-    >>> combination("abc", 2) | unpack
+    >>> combination("abc", 2) | collect
     [('a', 'b'), ('a', 'c'), ('b', 'c')]
 
     """
@@ -1347,9 +1348,9 @@ def combination(x, r, rep=False):
 def cartprod(*args, **kwargs):
     """return Cartesian product.
 
-    >>> cartprod("↑↓", "↑↓") | unpack
+    >>> cartprod("↑↓", "↑↓") | collect
     [('↑', '↑'), ('↑', '↓'), ('↓', '↑'), ('↓', '↓')]
-    >>> ("↑↓", "↑↓") | uncurry(cartprod) | unpack
+    >>> ("↑↓", "↑↓") | uncurry(cartprod) | collect
     [('↑', '↑'), ('↑', '↓'), ('↓', '↑'), ('↓', '↓')]
     """
     return f_(cprod, repeat=1)(*args, **kwargs)
@@ -1364,16 +1365,16 @@ def cartprodl(*args, **kwargs):
     >>> ("↑↓", "↑↓") | uncurry(cartprodl)
     [('↑', '↑'), ('↑', '↓'), ('↓', '↑'), ('↓', '↓')]
     """
-    return cartprod(*args, **kwargs) | unpack
+    return cartprod(*args, **kwargs) | collect
 
 
 @fx
 def concat(iterable):
     """concatenates all elements of iterables.
 
-    >>> concat(["so", "fia"]) | unpack
+    >>> concat(["so", "fia"]) | collect
     ['s', 'o', 'f', 'i', 'a']
-    >>> ["so", "fia"] | concat | unpack
+    >>> ["so", "fia"] | concat | collect
     ['s', 'o', 'f', 'i', 'a']
     """
     return it.chain.from_iterable(iterable)
@@ -1388,16 +1389,16 @@ def concatl(iterable):
     >>> ["so", "fia"] | concatl
     ['s', 'o', 'f', 'i', 'a']
     """
-    return concat(iterable) | unpack
+    return concat(iterable) | collect
 
 
 @fx
 def concatmap(f, x, *xs):
     """map a function over the given iterable then concat it.
 
-    >>> concatmap(str.upper, ["mar", "ia"]) | unpack
+    >>> concatmap(str.upper, ["mar", "ia"]) | collect
     ['M', 'A', 'R', 'I', 'A']
-    >>> ["mar", "ia"] | concatmap(str.upper) | unpack
+    >>> ["mar", "ia"] | concatmap(str.upper) | collect
     ['M', 'A', 'R', 'I', 'A']
     """
     return map(f, x, *xs) | concat
@@ -1412,7 +1413,7 @@ def concatmapl(f, x, *xs):
     >>> ["mar", "ia"] | concatmapl(str.upper)
     ['M', 'A', 'R', 'I', 'A']
     """
-    return map(f, x, *xs) | concat | unpack
+    return map(f, x, *xs) | concat | collect
 
 
 @fx
@@ -1439,37 +1440,77 @@ def intercalate(sep, x):
     return intersperse(sep, x) | concatl
 
 
-def flatten(*args):
-    """flatten all kinds of iterables except for string-like objects."""
+def _lazy_iterp(x):
+    """check if the given is a lazy iterable"""
+    return (
+        isinstance(x, Iterator)
+        or (isinstance(x, Iterable) and not hasattr(x, "__getitem__"))
+        or isinstance(x, range)
+    )
 
-    def ns_iter(x):
-        return (
-            hasattr(x, "__iter__")
-            and not isinstance(x, str)
-            and not isinstance(x, bytes)
-        )
 
-    def go(xss):
-        if ns_iter(xss):
-            for xs in xss:
-                yield from go([*xs] if ns_iter(xs) else xs)
-        else:
-            yield xss
+def _ns_iterp(x):
+    """check if the given is a non-string-like iterable"""
+    return isinstance(x, Iterable) and not isinstance(x, (str, bytes, bytearray))
 
-    return go(args)
+
+@fx
+def collect(x):
+    """unpack lazy-iterables in lists and leave other iterables unchanged
+
+    >>> collect((1,2,3,4,5))
+    (1, 2, 3, 4, 5)
+    >>> collect(range(5))
+    [0, 1, 2, 3, 4]
+    >>> (x for x in range(5)) | collect
+    [0, 1, 2, 3, 4]
+    """
+    if isinstance(x, Iterable):
+        return list(x) if _lazy_iterp(x) else x
+    else:
+        error(f"collect: no iterables given, got {type(x)}")
+
+
+@fx
+def flatten(x, d=1):
+    """reduce the nesting depth by the given level. (swallow flatten)
+    string-like iterables such as 'str', `bytes` and 'bytearray' are not flattened.
+
+    >>> flatten([1, [(2,), [{3}, (x for x in range(3))]]], d=3)
+    [1, 2, 3, 0, 1, 2]
+    >>> [1, [(2,), [{3}, (x for x in range(3))]]] | flatten(d=3)
+    [1, 2, 3, 0, 1, 2]
+    """
+
+    def go(x):
+        return [
+            a
+            for o in x
+            for a in (collect(o) if _lazy_iterp(o) else o if _ns_iterp(o) else [o])
+        ]
+
+    return cf_(go, rep=d)(x)
 
 
 @fx
 def flat(*args):
-    """the same as 'flatten', but a 'composable'.
+    """flatten iterables until they can no longer be flattened. (deep flatten)
+    string-like iterables such as 'str', `bytes` and 'bytearray' are not flattened.
 
-    >>> flat([1, [(2,), [[{3}, (x for x in range(3))]]]]) | unpack
+    >>> flat([1, [(2,), [[{3}, (x for x in range(3))]]]]) | collect
     [1, 2, 3, 0, 1, 2]
-    >>> [1, [(2,), [[{3}, (x for x in range(3))]]]] | flat | unpack
+    >>> [1, [(2,), [[{3}, (x for x in range(3))]]]] | flat | collect
     [1, 2, 3, 0, 1, 2]
-
     """
-    return flatten(*args)
+
+    def go(xss):
+        if _ns_iterp(xss):
+            for xs in xss:
+                yield from go([*xs] if _ns_iterp(xs) else xs)
+        else:
+            yield xss
+
+    return go(args)
 
 
 @fx
@@ -1481,7 +1522,7 @@ def flatl(*args):
     >>> flatl([1, [(2,), [[{3}, (x for x in range(3))]]]])
     [1, 2, 3, 0, 1, 2]
     """
-    return flatten(*args) | unpack
+    return flat(*args) | collect
 
 
 # easy-to-use alias for lazy operation
@@ -1503,7 +1544,7 @@ def mforce(iterables):
 def reader(f=None, mode="r", zipf=False):
     """get ready to read stream from a file or stdin, then returns the handle."""
     if f is not None:
-        guard(exists(f, "f"), f"reader, not found such a file: {f}")
+        guard(exists(f, "f"), f"reader: not found such a file: {f}")
     return (
         sys.stdin
         if f is None
@@ -1705,14 +1746,13 @@ def tee(f, s, a=False):
     return cf_(f_(fwrite, f, a=a), f_(echo, n=True))(s)
 
 
-@fx
 def split(f, /, nbytes, prefix):
     """split a file into multiple parts of specified byte-size like:
     $ split -b bytes f prefix_
 
     >>> split(FILE, 1024, "part-")  # doctest: +SKIP
     """
-    guard(exists(f, "f"), f"split, not found file: {f}")
+    guard(exists(f, "f"), f"split: not found file: {f}")
     fmt = f"0{len(str(os.stat(f).st_size // nbytes))}d"
     n = 0
     rf = reader(f, "rb")
@@ -1772,7 +1812,7 @@ def randint(x=None, high=None, size=None):
     """
 
     def rint(high=1 << 256, low=0):
-        guard(low < high, f"randint, low({low}) must be less than high({high})")
+        guard(low < high, f"randint: low({low}) must be less than high({high})")
         x = high - low
         return low + (bytes_to_int(randbytes((x.bit_length() + 7) // 8)) % x)
 
@@ -1803,7 +1843,7 @@ def choice(x, size=None, *, replace=False, p=None):
     def fromp(x, probs, e=1e-6):
         guard(
             len(x) == len(probs),
-            f"choice, not the same size: {len(x)}, {len(probs)}",
+            f"choice: not the same size: {len(x)}, {len(probs)}",
         )
         guard(
             1 - e < sum(probs) < 1 + e,
@@ -2002,8 +2042,8 @@ def pbpaste():
 
 
 def timer(t, msg="", quiet=False):
-    guard(isinstance(t, (int, float)), f"timer, not a number: {t}")
-    guard(t > 0, "timer, must be given a positive number: {t}")
+    guard(isinstance(t, (int, float)), f"timer: not a number: {t}")
+    guard(t > 0, "timer: must be given a positive number: {t}")
     t = int(t)
     fmt = f"{len(str(t))}d"
     while t >= 0:
@@ -2014,7 +2054,7 @@ def timer(t, msg="", quiet=False):
     writer().write("\033[K")
 
 
-def neatly(x={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
+def neatly(_={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
     """create neatly formatted string for data structure of 'dict' and 'list'."""
 
     def indent(x, i):
@@ -2046,8 +2086,8 @@ def neatly(x={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
             subsequent_indent=subsequent,
         )
 
-    if isinstance(x, dict):
-        d = x | kwargs
+    if isinstance(_, dict):
+        d = _ | kwargs
         if not d:
             return ""
         _cols = _cols or max(map(len, d.keys()))
@@ -2061,22 +2101,22 @@ def neatly(x={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
                 )
             ]
         )
-    elif isinstance(x, list):
+    elif isinstance(_, list):
         if _root:
-            return neatly({"'": x}, _repr=_repr, _root=False)
+            return neatly({"'": _}, _repr=_repr, _root=False)
         return unlines(
             filine(v, _width, "", "   ")
-            for o in x
+            for o in _
             for v in bullet(o, lines(neatly(o, _repr=_repr, _root=False)))
         )
     else:
-        return (repr if _repr else str)(x)
+        return (repr if _repr else str)(_)
 
 
 @fx
-def nprint(x={}, *, _cols=None, _width=10000, _repr=True, **kwargs):
+def nprint(_={}, *, _cols=None, _width=10000, _repr=True, **kwargs):
     """neatly print data structures of 'dict' and 'list' using `neatly`."""
-    print(neatly(x, _cols=_cols, _width=_width, _repr=_repr, **kwargs))
+    print(neatly(_, _cols=_cols, _width=_width, _repr=_repr, **kwargs))
 
 
 def timestamp(*, origin=None, w=0, d=0, h=0, m=0, s=0, from_iso=None, to_iso=False):
@@ -2112,7 +2152,7 @@ def taskbar(x=None, desc="working", *, start=0, total=None, barcolor="white", **
             if total is None:
                 total = len(x) if float(op.length_hint(x)) else None
             if start:
-                guard(total is not None, f"taskbar, not subscriptable: {x}")
+                guard(total is not None, f"taskbar: not subscriptable: {x}")
                 start = total + start if start < 0 else start
                 x = islice(x, start, None)
             task = tb.add_task(desc, completed=start, total=total)
@@ -2188,7 +2228,6 @@ def lsfx():
 # aliases for convenience
 # -------------------------------
 uniq = nub
-unpack = chars
 xargs = uncurry
 zipwith = mapl
 sort = fx(sorted)

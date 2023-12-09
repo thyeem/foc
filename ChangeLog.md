@@ -124,3 +124,7 @@
 
 # 0.4.1
 - Fix `neatly` and `nprint`: bugs in the defaults
+
+# 0.4.2
+- Add `flatten` and `collect`
+- Remove `unpack`
