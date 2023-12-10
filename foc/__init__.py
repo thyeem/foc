@@ -22,7 +22,7 @@ from subprocess import DEVNULL, PIPE, STDOUT, Popen
 from textwrap import fill
 from threading import Thread, Timer
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 __all__ = [
     "composable",
@@ -237,9 +237,9 @@ class composable:
     >>> range(73, 82) | map(chr) | unchars
     'IJKLMNOPQ'
 
-    >>> (fx(lambda x: x * 6) . fx(lambda x: x + 4))(3)
+    >>> (id . f_("*", 6) . f_("+", 4))(3)
     42
-    >>> 3 | fx(lambda x: x + 4) | fx(lambda x: x * 6)
+    >>> 3 | fx(f_("+", 4)) | fx(f_("*", 6))
     42
     """
 
@@ -847,9 +847,9 @@ def map(f, *xs):
     >>> map(abs)(range(-2, 3)) | collect
     [2, 1, 0, 1, 2]
 
-    >>> (collect . map(lambda x: x*8))(range(1, 6))
+    >>> (collect . map(f_("*", 8)))(range(1, 6))
     [8, 16, 24, 32, 40]
-    >>> range(1, 6) | map(lambda x: x*8) | collect
+    >>> range(1, 6) | map(f_("*", 8)) | collect
     [8, 16, 24, 32, 40]
 
     >>> (collect . map("*", [1, 2, 3]))([4, 5, 6])
@@ -1282,6 +1282,35 @@ def captures(p, string):
     return re.compile(p).findall(string)
 
 
+__op__ = {
+    "+": op.add,
+    "-": op.sub,
+    "*": op.mul,
+    "/": op.truediv,
+    "//": op.floordiv,
+    "**": op.pow,
+    "@": op.matmul,
+    "%": op.mod,
+    "&": op.and_,
+    "|": op.or_,
+    "^": op.xor,
+    "<<": op.lshift,
+    ">>": op.rshift,
+    "==": op.eq,
+    "!=": op.ne,
+    ">": op.gt,
+    ">=": op.ge,
+    "<": op.lt,
+    "<=": op.le,
+    "[]": op.getitem,
+    ",": pair,
+    ".": getattr,
+    "..": range,
+    "~": capture,
+    "~~": captures,
+}
+
+
 def sym(f=None):
     """get binary functions from the symbolic operators.
 
@@ -1290,37 +1319,14 @@ def sym(f=None):
     >>> sym(".")(dmap(sofia="maria"), "sofia")
     'maria'
     """
-    ops = {
-        "+": op.add,
-        "-": op.sub,
-        "*": op.mul,
-        "/": op.truediv,
-        "//": op.floordiv,
-        "**": op.pow,
-        "@": op.matmul,
-        "%": op.mod,
-        "&": op.and_,
-        "|": op.or_,
-        "^": op.xor,
-        "<<": op.lshift,
-        ">>": op.rshift,
-        "==": op.eq,
-        "!=": op.ne,
-        ">": op.gt,
-        ">=": op.ge,
-        "<": op.lt,
-        "<=": op.le,
-        "[]": op.getitem,
-        ",": pair,
-        ".": getattr,
-        "..": range,
-        "~": capture,
-        "~~": captures,
-    }
     return (
-        ops.get(f, f)
+        __op__.get(f, f)
         if f is not None
-        else nprint({k: v.__name__ for k, v in ops.items()}, _cols=14, _repr=False)
+        else nprint(
+            {k: v.__name__ for k, v in __op__.items()},
+            _cols=14,
+            _repr=False,
+        )
     )
 
 
@@ -1476,6 +1482,8 @@ def flatten(x, d=1):
     """reduce the nesting depth by the given level. (swallow flatten)
     string-like iterables such as 'str', `bytes` and 'bytearray' are not flattened.
 
+    >>> flatten([1, [2, 3, (4, 5)]])
+    [1, 2, 3, (4, 5)]
     >>> flatten([1, [(2,), [{3}, (x for x in range(3))]]], d=3)
     [1, 2, 3, 0, 1, 2]
     >>> [1, [(2,), [{3}, (x for x in range(3))]]] | flatten(d=3)
@@ -1831,7 +1839,7 @@ def randint(x=None, high=None, size=None):
 def shuffle(x):
     """Fisher-Yates shuffle in a cryptographically secure way"""
     for i in range(len(x) - 1, 0, -1):
-        j = randint(0, i)
+        j = randint(0, i + 1)
         x[i], x[j] = x[j], x[i]
     return x
 
@@ -2180,23 +2188,25 @@ def taskbar(x=None, desc="working", *, start=0, total=None, barcolor="white", **
 
 
 @lru_cache
-@trap(f_(const, 0))
 def nfpos(f):
-    """get the number of positional-only-arguments of a given function.
+    """get the number of positional arguments of a given function.
 
     >>> nfpos(bimap)
     3
     >>> nfpos(print)
     0
     """
-    return builtins.sum(
-        1
-        for p in signature(f).parameters.values()
-        if (
-            p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
-            and p.default is p.empty
+    try:
+        return builtins.sum(
+            1
+            for p in signature(f).parameters.values()
+            if (
+                p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                and p.default is p.empty
+            )
         )
-    )
+    except:
+        return 0
 
 
 def __sig__(xs):

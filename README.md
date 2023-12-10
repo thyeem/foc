@@ -58,9 +58,19 @@ Let's pick lottery numbers. That is to pick 6 numbers from 1 to 45. _The Lotto_ 
 
 # in Unix pipelines manner
 >>> gumballs | map(choice(size=6)) | map(sort) | collect
+[[1, 3, 5, 10, 23, 41],
+ [14, 18, 28, 33, 37, 39],
+ [13, 15, 19, 23, 32, 45],
+ [4, 11, 19, 27, 30, 39],
+ [8, 33, 35, 39, 40, 41]]
 
 # with Haskell-like mathematical symbol
 >>> (collect . map(sort . fx(choice(size=6))))(gumballs)
+[[4, 14, 15, 28, 42, 44],
+ [12, 34, 37, 40, 41, 42],
+ [7, 10, 21, 26, 31, 39],
+ [6, 11, 12, 14, 25, 32],
+ [2, 13, 15, 26, 27, 41]]
 ```
 
 The functions `foc` provides are not particularly different. Exactly, it look like normal functions.  
@@ -480,6 +490,19 @@ See also `uncurry`
 
 >>> cf_(square, rep=3)(2)        # cf_(square, square, square)(2) == ((2 ^ 2) ^ 2) ^ 2 = 256
 256
+
+
+>>> @cfd(mul7, add5, square)
+... def foo(x):
+...    return len(x)
+
+>>> foo([1,2,3])
+98
+
+# compare `cf_` with `cfd`
+cf_(a, b, c, d, f)(x)    # (a . b . c . d . f)(x) 
+
+cfd(a, b, c, d)(f)(x)    # (a . b . c . d)(f(x))
 ```
 
 `cfd` is very handy and useful to recreate previously defined functions by composing functions. All you need is to write a basic functions to do fundamental things.

@@ -128,3 +128,6 @@
 # 0.4.2
 - Add `flatten` and `collect`
 - Remove `unpack`
+
+# 0.4.3
+- Fix `shuffle` (index bug fix)
