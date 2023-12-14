@@ -22,7 +22,7 @@ from subprocess import DEVNULL, PIPE, STDOUT, Popen
 from textwrap import fill
 from threading import Thread, Timer
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 
 __all__ = [
     "composable",
@@ -276,7 +276,6 @@ def trap(callback, e=None):
     """decorator factory that creates exception catchers."""
 
     def catcher(f):
-        @wraps(f)
         def wrapper(*args, **kwargs):
             if e is None:
                 try:
@@ -719,6 +718,11 @@ def flip(f):
     return wrapper
 
 
+def _flip(f):
+    """fast-flip: the same as 'flip', but does not update the siganture."""
+    return lambda *args, **kwargs: sym(f)(*args[::-1], **kwargs)
+
+
 def f_(f, *args, **kwargs):
     """build left-associative partial application,
     where the given function's arguments partially evaluation from the left.
@@ -740,10 +744,10 @@ def ff_(f, *args, **kwargs):
     >>> mapl(ff_("**", 2), range(3, 7))
     [9, 16, 25, 36]
     """
-    return f_(flip(sym(f)), *args, **kwargs)
+    return partial(_flip(f), *args, **kwargs)
 
 
-def curry(f, *, _n=None):
+def curry(f, *, _=None):
     """build curried function that takes the arguments from the left.
     The currying result is simply a nested unary function.
 
@@ -756,11 +760,10 @@ def curry(f, *, _n=None):
     55
     """
     f = sym(f)
-    _n = nfpos(f) if _n is None else _n
+    _ = nfpos(f) if _ is None else _
 
-    @wraps(f)
     def wrapper(x):
-        return f(x) if _n <= 1 else curry(f_(f, x), _n=pred(_n))
+        return f(x) if _ <= 1 else curry(f_(f, x), _=_ - 1)
 
     return wrapper
 
@@ -777,7 +780,7 @@ def cc_(f):
     >>> cc_(foldl)(range(1, 11))(0)("+")
     55
     """
-    return c_(flip(sym(f)))
+    return c_(flip(f))
 
 
 def uncurry(f):
@@ -830,7 +833,6 @@ def cfd(*fs, rep=None):
     """
 
     def cfdeco(f):
-        @wraps(f)
         def wrapper(*args, **kwargs):
             return cf_(*fs, rep=rep)(f(*args, *kwargs))
 
@@ -1069,7 +1071,7 @@ def _in(a, b):
     >>> 'function' | _in("fun")
     True
     """
-    return flip(op.contains)(a, b)
+    return op.contains(b, a)
 
 
 @fx
@@ -1205,7 +1207,7 @@ def foldr(f, inital, xs):
     >>> range(1, 5) | foldr("-", 10)
     8
     """
-    return reduce(flip(sym(f)), xs[::-1], inital)
+    return reduce(_flip(f), xs[::-1], inital)
 
 
 @fx
@@ -1217,7 +1219,7 @@ def foldr1(f, xs):
     >>> range(1, 5) | foldr1("-")
     -2
     """
-    return reduce(flip(sym(f)), xs[::-1])
+    return reduce(_flip(f), xs[::-1])
 
 
 @fx
@@ -1253,7 +1255,7 @@ def scanr(f, initial, xs):
     >>> range(1, 5) | scanr("-", 10)
     [8, -7, 9, -6, 10]
     """
-    return accumulate(xs[::-1], flip(sym(f)), initial=initial) | rev
+    return accumulate(xs[::-1], _flip(f), initial=initial) | rev
 
 
 @fx
@@ -1265,7 +1267,7 @@ def scanr1(f, xs):
     >>> range(1, 5) | scanr1("-")
     [-2, 3, -1, 4]
     """
-    return accumulate(xs[::-1], flip(sym(f))) | rev
+    return accumulate(xs[::-1], _flip(f)) | rev
 
 
 @fx

@@ -131,3 +131,6 @@
 
 # 0.4.3
 - Fix `shuffle` (index bug fix)
+
+# 0.4.4
+- Fix `flip` 
