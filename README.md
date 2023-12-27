@@ -109,8 +109,8 @@ False
 all functions in `globals()` including all `built-ins` can be direcly composed by `.`, except for __two__.
 
 
-- `lambada` 
-- _partial application_ like: `partial(map, lambada x: x+5)`
+- `lambda` 
+- _partial application_ like: `partial(map, lambda x: x+5)`
   > the same as `map(f_("+", 5))`. They are interchangeable.   
 
 In those case, __just wrap them in `fx`__.
@@ -120,7 +120,7 @@ In those case, __just wrap them in `fx`__.
 >>> (id . f_("+", 2) . f_("*", 8))(5)             # isn't it better?
 42
 
->>> (sum . fx(partial(map, lambda x: x+5)))(range(5))   # don't partial(map, lambada ...)
+>>> (sum . fx(partial(map, lambda x: x+5)))(range(5))   # don't partial(map, lambda ...)
 37
 >>> (sum . map(f_("+", 5)))(range(5))                   # `map(f_("+", 5))` is enough
 37

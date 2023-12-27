@@ -413,10 +413,10 @@ def test_split_at():
 
 def test_chunks_of():
     assert list(chunks_of(3, range(1, 11))) == [
-        (1, 2, 3),
-        (4, 5, 6),
-        (7, 8, 9),
-        (10, None, None),
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+        [10],
     ]
 
 

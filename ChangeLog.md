@@ -134,3 +134,6 @@
 
 # 0.4.4
 - Fix `flip` 
+
+# 0.4.5
+- Fix `choice` and `chunks_of`

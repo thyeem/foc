@@ -22,7 +22,7 @@ from subprocess import DEVNULL, PIPE, STDOUT, Popen
 from textwrap import fill
 from threading import Thread, Timer
 
-__version__ = "0.4.4"
+__version__ = "0.4.5"
 
 __all__ = [
     "composable",
@@ -1581,12 +1581,19 @@ def split_at(ix, x):
     return ([*it.islice(x, begin, end)] for begin, end in zip(s, s[1:]))
 
 
-def chunks_of(n, x, fillvalue=None, fill=True):
-    """split interables into the given `n'-length pieces"""
-    if not fill:
-        x = list(x)
-        x = x[: len(x) // n * n]
-    return it.zip_longest(*(iter(x),) * n, fillvalue=fillvalue)
+def chunks_of(n, x, short=True):
+    """split iterables into n-length pieces, including the last chunk if any."""
+    it = iter(x)
+    while True:
+        chunk = []
+        try:
+            for _ in range(n):
+                chunk.append(next(it))
+        except StopIteration:
+            if short and chunk:
+                yield chunk
+            break
+        yield chunk
 
 
 def guard(p, msg="guard", e=SystemExit):
@@ -1864,6 +1871,8 @@ def choice(x, size=None, *, replace=False, p=None):
             if r < p:
                 return y
 
+    if not len(x):
+        return x
     if p is not None:
         return fromp(x, p)
     if size is None:
