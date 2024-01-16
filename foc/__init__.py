@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache, partial, reduce, wraps
 from glob import glob
 from inspect import signature
+from io import BytesIO, StringIO
 from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile
@@ -22,7 +23,7 @@ from subprocess import DEVNULL, PIPE, STDOUT, Popen
 from textwrap import fill
 from threading import Thread, Timer
 
-__version__ = "0.4.5"
+__version__ = "0.4.6"
 
 __all__ = [
     "composable",
@@ -131,6 +132,7 @@ __all__ = [
     "writer",
     "split_at",
     "chunks_of",
+    "chunks_from",
     "sym",
     "capture",
     "captures",
@@ -1596,6 +1598,36 @@ def chunks_of(n, x, short=True):
         yield chunk
 
 
+def chunks_from(kind):
+    """build a lazy-splitter that splits the given source into chunk-size
+    kind = 'f' (file) | 'i' (iterable) | 's' (string) | 'b' (bytes)
+    """
+
+    def from_file(n, x, mode="r"):
+        with reader(x, mode=mode) as f:
+            while True:
+                o = f.read(n)
+                if not o:
+                    break
+                yield o
+
+    def from_strlike(fio, n, x):
+        with fio(x) as s:
+            while True:
+                o = s.read(n)
+                if not o:
+                    break
+                yield o
+
+    fn = dict(
+        f=from_file,  # file
+        i=chunks_of,  # iterable
+        b=f_(from_strlike, BytesIO),  # bytes
+        s=f_(from_strlike, StringIO),  # string
+    ).get(kind)
+    return fn if fn else error(f"chunks_from: no such selector: {kind}")
+
+
 def guard(p, msg="guard", e=SystemExit):
     """'assert' as a function or expression."""
     if not p:
@@ -2073,7 +2105,9 @@ def timer(t, msg="", quiet=False):
     writer().write("\033[K")
 
 
-def neatly(_={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
+def neatly(
+    _={}, _cols=None, _width=10000, _repr=True, _sort=True, _root=True, **kwargs
+):
     """create neatly formatted string for data structure of 'dict' and 'list'."""
 
     def indent(x, i):
@@ -2112,7 +2146,7 @@ def neatly(_={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
         _cols = _cols or max(map(len, d.keys()))
         return unlines(
             filine(v, _width, f"{k:>{_cols}}  ", f"{' ':>{_cols}}     ")
-            for a, o in sort(d.items())
+            for a, o in (sort if _sort else id)(d.items())
             for k, v in [
                 ("", b) if i else (a, b)
                 for i, b in enumerate(
@@ -2133,9 +2167,9 @@ def neatly(_={}, _cols=None, _width=10000, _repr=True, _root=True, **kwargs):
 
 
 @fx
-def nprint(_={}, *, _cols=None, _width=10000, _repr=True, **kwargs):
+def nprint(_={}, *, _cols=None, _width=10000, _repr=True, _sort=True, **kwargs):
     """neatly print data structures of 'dict' and 'list' using `neatly`."""
-    print(neatly(_, _cols=_cols, _width=_width, _repr=_repr, **kwargs))
+    print(neatly(_, _cols=_cols, _width=_width, _repr=_repr, _sort=_sort, **kwargs))
 
 
 def timestamp(*, origin=None, w=0, d=0, h=0, m=0, s=0, from_iso=None, to_iso=False):

@@ -137,3 +137,7 @@
 
 # 0.4.5
 - Fix `choice` and `chunks_of`
+
+# 0.4.6
+- Add `chunks_from`
+- Fix `neatly` and `nprint` (add sorting flags)
