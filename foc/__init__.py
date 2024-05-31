@@ -23,7 +23,7 @@ from subprocess import DEVNULL, PIPE, STDOUT, Popen
 from textwrap import fill
 from threading import Thread, Timer
 
-__version__ = "0.4.6"
+__version__ = "0.4.7"
 
 __all__ = [
     "composable",
@@ -1560,9 +1560,7 @@ def reader(f=None, mode="r", zipf=False):
     return (
         sys.stdin
         if f is None
-        else zipfile.ZipFile(normpath(f), mode)
-        if zipf
-        else open(normpath(f), mode)
+        else zipfile.ZipFile(normpath(f), mode) if zipf else open(normpath(f), mode)
     )
 
 
@@ -1571,9 +1569,7 @@ def writer(f=None, mode="w", zipf=False):
     return (
         sys.stdout
         if f is None
-        else zipfile.ZipFile(normpath(f), mode)
-        if zipf
-        else open(normpath(f), mode)
+        else zipfile.ZipFile(normpath(f), mode) if zipf else open(normpath(f), mode)
     )
 
 
@@ -1713,14 +1709,25 @@ def rmdir(path, rm_rf=False):
         os.removedirs(path)
 
 
-def ls(*paths, grep=None, i=False, r=False, f=False, d=False, g=False, _root=True):
-    """list directory contents: just like 'ls -a1'.
+def ls(
+    *paths,
+    grep=None,
+    a=False,
+    r=False,
+    i=False,
+    f=False,
+    d=False,
+    g=False,
+    _root=True,
+):
+    """list directory contents: just like 'ls -1'.
 
     Note:
       - allowed glob patterns (*,?,[) in <path..>
-      - given 'grep=<regex>', it behaves like 'ls -a1 <path..> | grep <regex>'
-      - if i is set, it makes 'grep' case-insensitive (-i flag in grep)
+      - given 'grep=<regex>', it behaves like 'ls -1 <path..> | grep <regex>'
+      - if a is set, it also lists hidden files (dotfiles) (-a flag in ls)
       - if r is set, it behaves like 'find -s <path..>' (-R flag in ls)
+      - if i is set, it makes 'grep' case-insensitive (-i flag in grep)
       - if f is set, it lists only files like 'find <path..> -type f'
       - if d is set, it lists only directories like 'find <path..> -type d'
       - if g is set, it returns a generator instead of a sorted list
@@ -1732,22 +1739,32 @@ def ls(*paths, grep=None, i=False, r=False, f=False, d=False, g=False, _root=Tru
     def fd(x):
         return (typef and exists(x, "f")) or (typed and exists(x, "d"))
 
+    def listdir(x):
+        return cf_(
+            id if a else filter(cf_(_not, ff_(str.startswith, "."))),
+            os.listdir,
+        )(x)
+
     def root(xs):
         return flat(
-            glob(normpath(x))
-            if re.search(r"[\*\+\?\[]", x)
-            else cf_(
-                guard_(exists, f"ls, no such file or directory: {x}"),
-                normpath,
-            )(x)
+            (
+                glob(normpath(x))
+                if re.search(r"[\*\+\?\[]", x)
+                else cf_(
+                    guard_(exists, f"ls, no such file or directory: {x}"),
+                    normpath,
+                )(x)
+            )
             for x in xs
         )
 
     def rflag(xs):
         return flat(
-            (x, ls(x, grep=grep, i=i, r=r, f=f, d=d, g=g, _root=False))
-            if exists(x, "d")
-            else x
+            (
+                (x, ls(x, grep=grep, a=a, r=r, i=i, f=f, d=d, g=g, _root=False))
+                if exists(x, "d")
+                else x
+            )
             for x in xs
         )
 
@@ -1758,7 +1775,7 @@ def ls(*paths, grep=None, i=False, r=False, f=False, d=False, g=False, _root=Tru
         rflag if r else id,  # recursively listing: -R flag
     )(
         flat(
-            [normpath(f"{x}/{o}") for o in (os.listdir(x))] if exists(x, "d") else x
+            [normpath(f"{x}/{o}") for o in listdir(x)] if exists(x, "d") else x
             for x in (root(paths) if _root else paths)
         )
     )
@@ -1837,13 +1854,13 @@ def randbytes(n):
 
 def rand(x=None, high=None, size=None):
     return (
-        [rd.uniform(x, high) for _ in range(size)]  # #args == 3
+        [rd.uniform(x, high) for _ in range(size)]
         if size is not None
-        else rd.uniform(x, high)  # #args == 2
-        if high is not None
-        else rd.uniform(0, x)  # #args == 1
-        if x is not None
-        else rd.random()  # #args == 0
+        else (
+            rd.uniform(x, high)
+            if high is not None
+            else rd.uniform(0, x) if x is not None else rd.random()
+        )
     )
 
 
@@ -1866,13 +1883,13 @@ def randint(x=None, high=None, size=None):
         return low + (bytes_to_int(randbytes((x.bit_length() + 7) // 8)) % x)
 
     return (
-        [rint(high, x) for _ in range(size)]  # #args == 3
+        [rint(high, x) for _ in range(size)]
         if size is not None
-        else rint(high, x)  # #args == 2
-        if high is not None
-        else rint(x)  # #args == 1
-        if x is not None
-        else rint()  # #args == 0
+        else (
+            rint(high, x)
+            if high is not None
+            else (rint(x) if x is not None else rint())
+        )
     )
 
 
@@ -2117,9 +2134,11 @@ def neatly(
         return (
             (u("-", 3) if i else u("+", 3))
             if x and x[0] == "|"
-            else f"{x}"
-            if x and x[0] == ":"
-            else ((u("-") if x[0] == "+" else u("")) if i else u("+"))
+            else (
+                f"{x}"
+                if x and x[0] == ":"
+                else ((u("-") if x[0] == "+" else u("")) if i else u("+"))
+            )
         )
 
     def bullet(o, s):

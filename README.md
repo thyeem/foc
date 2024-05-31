@@ -817,13 +817,16 @@ profession  |  'one-in-a-million talent'
 Use `ls` and `grep` in the same way you use in your terminal every day.   
 _This is just a more intuitive alternative to_ `os.listdir` and `os.walk`. When applicable, use `shell` instead. 
 
-> `ls(*paths, grep=REGEX, i=BOOL, r=BOOL, f=BOOL, d=BOOL, g=BOOL)`
+> `ls(*paths, grep=REGEX, a=BOOL, r=BOOL, i=BOOL, f=BOOL, d=BOOL, g=BOOL)`
 ```python
 # couldn't be simpler!
->>> ls()       # the same as ls("."): get contents of the curruent dir
+>>> ls()         # the same as ls("."): get contents of the curruent dir
 
 # expands "~" automatically
->>> ls("~")    # the same as `ls -a1 ~`: returns a list of $HOME
+>>> ls("~")      # the same as `ls -1 ~`: returns a list of $HOME
+
+# list hidden files ('dotfiles' or files starting with ".")
+>>> ls(a=True)   # the same as `ls -a`
 
 # support glob patterns (*, ?, [)
 >>> ls("./*/*.py")
@@ -832,8 +835,8 @@ _This is just a more intuitive alternative to_ `os.listdir` and `os.walk`. When 
 >>> ls(FILE, DIR, ...)
 ```
 ```python
-# list up recursively and filter hidden files out
->>> ls(".git", r=True, grep="^[^\.]")
+# list up `.git` directory recursively and pick files ending with digits
+>>> ls(".git", r=True, grep="\d$")
 ```
 ```python
 # only files in '.git' directory

@@ -141,3 +141,6 @@
 # 0.4.6
 - Add `chunks_from`
 - Fix `neatly` and `nprint` (add sorting flags)
+
+# 0.4.7
+- Fix `ls`: don't list hidden files(dotfile) by default. add '-a' flag.
