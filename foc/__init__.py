@@ -17,13 +17,13 @@ from io import BytesIO, StringIO
 from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile
-from multiprocessing import Process
+from multiprocessing import Pool, Process
 from shutil import rmtree
 from subprocess import DEVNULL, PIPE, STDOUT, Popen
 from textwrap import fill
 from threading import Thread, Timer
 
-__version__ = "0.4.7"
+__version__ = "0.4.8"
 
 __all__ = [
     "composable",
@@ -167,6 +167,7 @@ __all__ = [
     "singleton",
     "thread",
     "proc",
+    "parmap",
     "polling",
     "shell",
     "pbcopy",
@@ -2029,6 +2030,22 @@ def proc(daemon=False):
         return wrapper
 
     return p
+
+
+def parmap(f, x, *xs, workers=None):
+    """easily parallelizes function applications over iterables
+    by utilizing multiple cpu cores with 'multiprocessing.Pool'.
+    In the same way as 'map', it very simply maps a function over
+    an iterable and executes it in parallel.
+
+    >>> parmap(bruteforce, preImages)    # doctest: +SKIP
+    >>> parmap(os.remove, manyFiles)     # doctest: +SKIP
+    """
+    workers = workers or os.cpu_count()
+    with Pool(workers) as pool:
+        x = zip(x, *xs) if xs else x
+        mapper = pool.starmap if xs else pool.map
+        return mapper(sym(f), x)
 
 
 class polling:

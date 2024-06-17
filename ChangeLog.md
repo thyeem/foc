@@ -144,3 +144,6 @@
 
 # 0.4.7
 - Fix `ls`: don't list hidden files(dotfile) by default. add '-a' flag.
+
+# 0.4.8
+- Add `parmap`
