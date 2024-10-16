@@ -1,14 +1,14 @@
-import setuptools
+import re
 
-from foc import capture, reader
+import setuptools
 
 setuptools.setup(
     name="foc",
-    version=capture(
-        r"__version__\s*=\s*['\"](.*)['\"]", reader("foc/__init__.py").read()
-    ),
+    version=re.compile(r"__version__\s*=\s*['\"](.*)['\"]").findall(
+        open("foc/__init__.py", "r").read()
+    )[0],
     description="A collection of python functions for somebody's sanity",
-    long_description=reader("README.md").read(),
+    long_description=open("README.md", "r").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/thyeem/foc",
     author="Francis Lim",

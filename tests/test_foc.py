@@ -1,3 +1,5 @@
+import operator as op
+
 import pytest
 from foc import *
 
@@ -135,33 +137,33 @@ def test_flip():
     assert fn(4, 3, 2, 1) == flip(fn)(1, 2, 3, 4)
 
 
-def test_f_ff_():
-    assert f_("+", 5)(2) == 7
-    assert ff_("+", 5)(2) == 7
-    assert f_("-", 5)(2) == 3
-    assert ff_("-", 5)(2) == -3
+def test_f_f__():
+    assert f_(op.add, 5)(2) == 7
+    assert f__(op.add, 5)(2) == 7
+    assert f_(op.sub, 5)(2) == 3
+    assert f__(op.sub, 5)(2) == -3
     assert f_(fn, 1, 2)(3, 4) == "1-2-3-4"
     assert f_(fn, 1, 2, 3)(4) == "1-2-3-4"
-    assert ff_(fn, 1, 2)(3, 4) == "4-3-2-1"
+    assert f__(fn, 1, 2)(3, 4) == "4-3-2-1"
 
 
 def test_curry():
-    assert c_("+")(5)(2) == 7
-    assert c_("+")(2)(5) == 7
-    assert c_("-")(5)(2) == 3
-    assert c_("-")(2)(5) == -3
-    assert c_("-")(5)(2) == cc_("-")(2)(5)
+    assert c_(op.add)(5)(2) == 7
+    assert c_(op.add)(2)(5) == 7
+    assert c_(op.sub)(5)(2) == 3
+    assert c_(op.sub)(2)(5) == -3
+    assert c_(op.sub)(5)(2) == c__(op.sub)(2)(5)
     assert c_(fn)(1)(2)(3)(4) == "1-2-3-4"
     assert c_(fn)(4)(3)(2)(1) == "4-3-2-1"
-    assert c_(fn)(4)(3)(2)(1) == cc_(fn)(1)(2)(3)(4)
+    assert c_(fn)(4)(3)(2)(1) == c__(fn)(1)(2)(3)(4)
 
 
 def test_cf_():
-    assert cf_(f_("*", 7), f_("+", 5), f_("**", 3))(2) == 98
+    assert cf_(_ * 7, _ + 5, 3**_)(2) == 98
 
 
-def test_cfd():
-    @cfd(f_("*", 7), f_("+", 5), ff_("**", 3))
+def test_cfd_():
+    @cfd_(_ * 7, _ + 5, _**3)
     def f(x, y):
         return x**2 + y**2
 
@@ -169,7 +171,7 @@ def test_cfd():
 
 
 def test_mapl():
-    fn = f_("*", 8)
+    fn = _ * 8
     assert mapl(fn, range(1, 6)) == [8, 16, 24, 32, 40]
     assert list(map(fn, range(1, 6))) == mapl(fn, range(1, 6))
 
@@ -195,23 +197,23 @@ def test_dropwhilel():
 
 
 def test_bimap():
-    assert bimap(f_("+", 3), f_("*", 7), (5, 7)) == (8, 49)
+    assert bimap(_ + 3, _ * 7, (5, 7)) == (8, 49)
 
 
 def test_first():
-    assert first(f_("+", 3), (5, 7)) == (8, 7)
+    assert first(_ + 3, (5, 7)) == (8, 7)
 
 
 def test_second():
-    assert second(f_("*", 7), (5, 7)) == (5, 49)
+    assert second(_ * 7, (5, 7)) == (5, 49)
 
 
 def test_until():
-    assert until(f_("<", 100), f_("*", 2), 2) == 128
+    assert until(100 < _, _ * 2, 2) == 128
 
 
 def test_iterate():
-    assert take(5, iterate(lambda x: x**2, 2)) == [2, 4, 16, 256, 65536]
+    assert take(5, iterate(_**2, 2)) == [2, 4, 16, 256, 65536]
 
 
 def test_apply():
@@ -219,35 +221,35 @@ def test_apply():
 
 
 def test_foldl():
-    assert foldl("-", 10, range(1, 5)) == 0
+    assert foldl(op.sub, 10, range(1, 5)) == 0
 
 
 def test_foldr():
-    assert foldr("-", 10, range(1, 5)) == 8
+    assert foldr(op.sub, 10, range(1, 5)) == 8
 
 
 def test_foldl1():
-    assert foldl1("-", range(1, 5)) == -8
+    assert foldl1(op.sub, range(1, 5)) == -8
 
 
 def test_foldr1():
-    assert foldr1("-", range(1, 5)) == -2
+    assert foldr1(op.sub, range(1, 5)) == -2
 
 
 def test_scanl():
-    assert scanl("-", 10, range(1, 5)) == [10, 9, 7, 4, 0]
+    assert scanl(op.sub, 10, range(1, 5)) == [10, 9, 7, 4, 0]
 
 
 def test_scanr():
-    assert scanr("-", 10, range(1, 5)) == [8, -7, 9, -6, 10]
+    assert scanr(op.sub, 10, range(1, 5)) == [8, -7, 9, -6, 10]
 
 
 def test_scanl1():
-    assert scanl1("-", range(1, 5)) == [1, -1, -4, -8]
+    assert scanl1(op.sub, range(1, 5)) == [1, -1, -4, -8]
 
 
 def test_scanr1():
-    assert scanr1("-", range(1, 5)) == [-2, 3, -1, 4]
+    assert scanr1(op.sub, range(1, 5)) == [-2, 3, -1, 4]
 
 
 def test_concatl():
@@ -348,39 +350,39 @@ def test_intercalate():
     ) == [1, 2, -55, 3, 4, -55, 5, 6]
 
 
-def test_not():
-    assert _not(False)
-    assert not (_not(True))
+def test_not_():
+    assert not_(False)
+    assert not (not_(True))
 
 
-def test_and():
-    assert _and(1, True)
-    assert not (_and("foc", False))
-    assert not (_and([], False))
+def test_and_():
+    assert and_(1, True)
+    assert not (and_("foc", False))
+    assert not (and_([], False))
 
 
-def test_or():
-    assert _or(1, True)
-    assert _or("foc", False)
-    assert not (_or([], False))
+def test_or_():
+    assert or_(1, True)
+    assert or_("foc", False)
+    assert not (or_([], False))
 
 
-def test_in():
-    assert _in("s", "sofia")
-    assert _in(3, range(5))
-    assert not _in("qux", "maria")
+def test_in_():
+    assert in_("s", "sofia")
+    assert in_(3, range(5))
+    assert not in_("qux", "maria")
 
 
-def test_is():
-    assert _is("sofia", "sofia")
-    assert _is((0, 1, 2), (0, 1, 2))
-    assert not _is([0, 1, 2], rangel(3))
+def test_is_():
+    assert is_("sofia", "sofia")
+    assert is_((0, 1, 2), (0, 1, 2))
+    assert not is_([0, 1, 2], rangel(3))
 
 
 def test_isnt():
-    assert not _isnt("sofia", "sofia")
-    assert not _isnt((0, 1, 2), (0, 1, 2))
-    assert _isnt([0, 1, 2], rangel(3))
+    assert not isnt_("sofia", "sofia")
+    assert not isnt_((0, 1, 2), (0, 1, 2))
+    assert isnt_([0, 1, 2], rangel(3))
 
 
 def test_lazy():
@@ -389,40 +391,3 @@ def test_lazy():
 
 def test_force():
     assert force(lazy(pow, 2, 10)) == 1024
-
-
-def test_mforce():
-    assert mforce([lazy(pow, 2, 10), lazy(foldl, "-", 10, range(1, 5))]) == [1024, 0]
-
-
-def test_flatl(d):
-    assert flatl(d) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-
-
-def test_capture():
-    assert capture(r"\d+", "2023Year-05Month-24Day") == "2023"
-
-
-def test_captures():
-    assert captures(r"\d+", "2023Year-05Month-24Day") == ["2023", "05", "24"]
-
-
-def test_split_at():
-    assert list(split_at((3, 5), range(1, 11))) == [[1, 2, 3], [4, 5], [6, 7, 8, 9, 10]]
-
-
-def test_chunks_of():
-    assert list(chunks_of(3, range(1, 11))) == [
-        [1, 2, 3],
-        [4, 5, 6],
-        [7, 8, 9],
-        [10],
-    ]
-
-
-def test_bytes_to_int():
-    assert bytes_to_int(b"francis") == 28836210413889907
-
-
-def test_int_to_bytes():
-    assert int_to_bytes(28836210413889907) == b"francis"
