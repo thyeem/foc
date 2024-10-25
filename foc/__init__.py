@@ -9,9 +9,8 @@ from inspect import Signature, signature
 from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile
-from types import FunctionType
 
-__version__ = "0.5.0"
+__version__ = "0.5.2"
 
 __all__ = [
     "_",
@@ -34,7 +33,6 @@ __all__ = [
     "chr",
     "collect",
     "combination",
-    "composable",
     "concat",
     "concatl",
     "concatmap",
@@ -93,6 +91,7 @@ __all__ = [
     "nub",
     "null",
     "odd",
+    "op",
     "or_",
     "ord",
     "pair",
@@ -103,7 +102,7 @@ __all__ = [
     "repeat",
     "replicate",
     "rev",
-    "reverse",
+    "rg",
     "safe",
     "scanl",
     "scanl1",
@@ -123,15 +122,13 @@ __all__ = [
     "u_",
     "unchars",
     "uncurry",
+    "unfx",
     "uniq",
     "unlines",
     "until",
     "unwords",
-    "unzip",
-    "unzipl",
     "void",
     "words",
-    "xargs",
     "xlambda",
     "zip",
     "zipl",
@@ -139,28 +136,27 @@ __all__ = [
 ]
 
 
-class composable:
-    """Create a function to make a given function 'composable' using symbols.
-    The `composable` (or `fx`) generates symbol-composable functions on the spot.
+class fx:
+    """Create a function to make a given function composable using symbols.
+    The ``fx`` generates symbol-composable functions on the spot.
 
-    >>> fx = composable
     >>> 7 | fx(lambda x: x * 6)
     42
     >>> @fx
     ... def fn(x, y):
     ...     ...
 
-    `fx` stands for 'Function eXtension'.
-    'fx' allows functions to be composed in two intuitive ways with symbols.
+    ``fx`` stands for 'Function eXtension' which can lift all kinds of functions.
+    ``fx`` allows functions to be composed in two intuitive ways with symbols.
 
-    +-----------+-------------------------------------+------------+
-    |  symbol   |         description                 | eval-order |
-    +-----------+-------------------------------------+------------+
-    | ^ (caret) | same as dot(.) mathematical symbol  | backwards  |
-    +-----------+-------------------------------------+------------+
-    | | (pipe)  | in Unix pipeline (|) manner         | in order   |
-    +-----------+-------------------------------------+------------+
-    > If you don't like function composition using symbols, use 'cf_'.
+    +---------------+-----------------------------------------+---------------+
+    |     symbol    |               description               |  eval-order   |
+    +---------------+-----------------------------------------+---------------+
+    | ``^`` (caret) | same as dot(``.``) mathematical symbol  | right-to-left |
+    +---------------+-----------------------------------------+---------------+
+    | ``|`` (pipe)  | in Unix pipeline (``|``) manner         | left-to-right |
+    +---------------+-----------------------------------------+---------------+
+    > If you don't like function composition using symbols, use ``cf_``.
     > It's the most reliable and safe way to use it for all functions.
 
     >>> ((_ * 6) ^ (_ + 4))(3)
@@ -203,24 +199,24 @@ class composable:
     """
 
     def __new__(cls, f):
-        if isinstance(f, composable):
+        if type(f) is fx:  # join :: m (m a) -> m a
             return f
         obj = super().__new__(cls)
         obj.f = f
         wraps(f)(obj)
         return obj
 
+    def __xor__(self, o):
+        """dot composition operator (``^``)"""
+        return cf_(self, o)
+
     def __or__(self, o):
-        """pipe composition operator ('|')"""
-        return cf_(o, self.f)
+        """pipe composition operator (``|``)"""
+        return cf_(o, self)
 
     def __ror__(self, o):
-        """pipe composition operator ('|')"""
+        """pipe composition operator (``|``)"""
         return self.f(o)
-
-    def __xor__(self, o):
-        """dot composition operator ('^')"""
-        return cf_(self.f, o)
 
     def __call__(self, *args, **kwargs):
         arity = farity(self.f)
@@ -233,8 +229,10 @@ class composable:
         return show(self)
 
 
-# for the sake of brevity
-fx = composable
+@lru_cache
+def unfx(f):
+    """Unlift a given ``fx``-lifted function."""
+    return f.f if type(f) is fx else f
 
 
 @fx
@@ -251,7 +249,7 @@ def id(x):
 
 @fx
 def const(x, _):
-    """Build an id function that returns a given 'x'.
+    """Build an id function that returns a given ``x``.
 
     >>> const(5, "no-matther-what-comes-here")
     5
@@ -309,7 +307,7 @@ def snd(x):
 
 @fx
 def nth(n, x):
-    """Get the 'n'-th component of a given iterable 'x'.
+    """Get the ``n``-th component of a given iterable ``x``.
 
     >>> nth(3, ["sofia", "maria", "claire"])
     'claire'
@@ -321,7 +319,7 @@ def nth(n, x):
 
 @fx
 def take(n, x):
-    """Take 'n' items from a given iterable 'x'.
+    """Take ``n`` items from a given iterable ``x``.
 
     >>> take(3, range(5, 10))
     [5, 6, 7]
@@ -333,7 +331,7 @@ def take(n, x):
 
 @fx
 def drop(n, x):
-    """Return items of the iterable 'x' after skipping 'n' items.
+    """Return items of the iterable ``x`` after skipping ``n`` items.
 
     >>> list(drop(3, 'github'))
     ['h', 'u', 'b']
@@ -345,7 +343,7 @@ def drop(n, x):
 
 @fx
 def head(x):
-    """Extract the first element of a given iterable: the same as 'fst'.
+    """Extract the first element of a given iterable: the same as ``fst``.
 
     >>> head(range(1, 5))
     1
@@ -357,7 +355,7 @@ def head(x):
 
 @fx
 def tail(x):
-    """Extract the elements after the 'head' of a given iterable.
+    """Extract the elements after the ``head`` of a given iterable.
 
     >>> list(tail(range(1, 5)))
     [2, 3, 4]
@@ -369,7 +367,7 @@ def tail(x):
 
 @fx
 def init(x):
-    """Return all the elements of an iterable except the 'last' one.
+    """Return all the elements of an iterable except the ``last`` one.
 
     >>> list(init(range(1, 5)))
     [1, 2, 3]
@@ -486,7 +484,7 @@ def null(x):
 
 @fx
 def chars(x):
-    """Split string 'x' into `chars`: the same as (:[]) <$> x.
+    """Split string ``x`` into `chars`: the same as (:[]) <$> x.
 
     >>> chars("sofimarie")
     ['s', 'o', 'f', 'i', 'm', 'a', 'r', 'i', 'e']
@@ -498,7 +496,7 @@ def chars(x):
 
 @fx
 def unchars(x):
-    """Inverse operation of 'chars': the same as 'concat'.
+    """Inverse operation of ``chars``: the same as ``concat``.
 
     >>> unchars(['s', 'o', 'f', 'i', 'm', 'a', 'r', 'i', 'e'])
     'sofimarie'
@@ -534,7 +532,7 @@ def unwords(x):
 
 @fx
 def lines(x):
-    """Splits a string into a list of lines using the delimeter '\\n'.
+    """Splits a string into a list of lines using the delimeter ``\`n`.
 
     >>> lines("fun\\non\\nfunctions")
     ['fun', 'on', 'functions']
@@ -546,7 +544,7 @@ def lines(x):
 
 @fx
 def unlines(x):
-    """Joins a list of lines with the newline character, '\\n'.
+    """Joins a list of lines with the newline character, ``\n``.
 
     >>> unlines(['fun', 'on', 'functions'])
     'fun\\non\\nfunctions'
@@ -570,7 +568,7 @@ def elem(x, xs):
 
 @fx
 def not_elem(x, xs):
-    """Negation of 'elem'. The same as `not_ . elem`.
+    """Negation of ``elem``. The same as `not_ . elem`.
 
     >>> not_elem("fun", "functions")
     False
@@ -593,20 +591,19 @@ def nub(x):
 
 
 @fx
-def repeat(x, nf=True):
-    """Create an infinite list with x value of every element:
-    if nf (NF, Normal Form) is set, callable objects will be evaluated.
+def repeat(x):
+    """Create an infinite list with the argument ``x``.
 
     >>> take(3, repeat(5))
     [5, 5, 5]
     >>> repeat(5) | take(3)
     [5, 5, 5]
     """
-    return (x() if nf and callable(x) else x for _ in count())
+    return (x for _ in count())
 
 
 @fx
-def replicate(n, x, nf=True):
+def replicate(n, x):
     """Get a list of length `n` from an infinite list with `x` values.
 
     >>> replicate(3, 5)
@@ -614,7 +611,7 @@ def replicate(n, x, nf=True):
     >>> 5 | replicate(3)
     [5, 5, 5]
     """
-    return take(n, repeat(x, nf=nf))
+    return take(n, repeat(x))
 
 
 @fx
@@ -630,19 +627,17 @@ def product(x):
 
 
 def flip(f):
-    """Reverses the order of arguments of a given function 'f'
-    `f :: a -> b -> ... -> c -> d -> o`
-    `flip(f) :: d -> c -> ... -> b -> a -> o`
+    """Reverses the order of arguments of a given function ``f``.
 
     >>> flip(pow)(7, 3)
     2187
-    >>> (7, 3) | uncurry(flip(op.sub))
+    >>> (7, 3) | u_(flip((op.sub)))
     -4
     """
 
     @wraps(f)
     def go(*args, **kwargs):
-        return f(*args[::-1], **kwargs)
+        return f(*reversed(args), **kwargs)
 
     go.__signature__ = sig(f, reverse=True)
     return go
@@ -657,7 +652,7 @@ def f_(f, *args, **kwargs):
     >>> 5 | f_(op.sub, 7)
     2
     """
-    return fx(partial(f, *args, **kwargs))
+    return fx(partial(unfx(f), *args, **kwargs))
 
 
 def f__(f, *args, **kwargs):
@@ -672,47 +667,55 @@ def f__(f, *args, **kwargs):
     return fx(partial(flip(f), *args, **kwargs))
 
 
-def curry(f, *, __=None):
-    """Build curried function that takes the arguments from the left.
-    The currying result is simply a nested unary function.
+def curry(f, *, a=None):
+    """Build left-associative curried function.
 
     This function takes positional arguments only when currying.
-    Use partial application `f_` before currying if you need to change kwargs
+    Use partial application `f_` if you need to change keyword arguments.
 
     >>> curry(op.sub)(5)(2)
     3
     >>> curry(foldl)(op.add)(0)(range(1, 101))
     5050
     """
-    __ = farity(f) if __ is None else __
+    f = unfx(f)
+    a = farity(f) if a is None else a
 
     @wraps(f)
     def go(x):
-        return f(x) if __ <= 1 else curry(partial(f, x), __=__ - 1)
+        return f(x) if a <= 1 else curry(partial(f, x), a=a - 1)
 
     return go
 
 
 def c__(f):
-    """Build curried function that takes the arguments from the right.
+    """Build right-associative curried function.
 
     >>> c__(op.sub)(5)(2)
     -3
     >>> c__(foldl)(range(1, 11))(0)(op.add)
     55
     """
-    return c_(flip(f))
+    return curry(flip(f))
 
 
 def uncurry(f):
-    """Convert a normal function to a unary function on a tuple of arguments.
-    `uncurry :: (a -> ... -> b -> o) -> (a, ..., b) -> o`
+    """Convert a function to a unary function that takes a tuple of arguments.
+    This is identical to the behavior of the `uncurry` in Haskell.
+    ``uncurry :: (a -> b -> ... -> x -> o) -> (a, b, ..., x) -> o``
 
-    >>> uncurry(pow)((2, 10))
+    ``uncurry`` is useful for controlling arguments when composing functions.
+
+    Python functions do not automatically curry like Haskell, which means
+    this function cannot restore a curried function to its original form.
+    In that case, use ``f.__wrapped__`` to get the original uncurried function.
+
+    >>> u_ = uncurry
+    >>> u_(pow)((2, 10))
     1024
-    >>> (2, 3) | uncurry(op.add)
+    >>> (2, 3) | u_(op.add)
     5
-    >>> ([1, 3], [2, 4]) | uncurry(zip) | collect
+    >>> ([1, 3], [2, 4]) | u_(zip) | collect
     [(1, 2), (3, 4)]
     """
     return fx(lambda x: f(*x))
@@ -730,18 +733,18 @@ def cf_(*fs, rep=None):
     def g_f(g, f):
         return lambda *args, **kwargs: g(f(*args, **kwargs))
 
-    return fx(reduce(g_f, fs * rep if rep else fs))
+    return fx(reduce(g_f, [unfx(f) for f in fs] * (rep or 1)))
 
 
 def cf__(*fs, rep=None):
-    """Composes functions in the same way as 'cf_', but uses arguments in order.
+    """Composes functions in the same way as ``cf_``, but uses arguments in order.
 
     >>> cf__(_ + 3, _ * 7)(5)
     56
     >>> cf__(dict, _["sofia"])([("sofia", "piano"), ("maria", "violin")])
     'piano'
     """
-    return cf_(*fs[::-1], rep=rep)
+    return cf_(*reversed(fs), rep=rep)
 
 
 def cfd_(*fs, rep=None):
@@ -760,18 +763,18 @@ def cfd_(*fs, rep=None):
 
 
 def cfd__(*fs, rep=None):
-    """Decorate functions in the same way as 'cfd_', but uses arguments in order.
+    """Decorate functions in the same way as ``cfd_``, but uses arguments in order.
 
     >>> cfd__(set, list, tuple)(range)(5)
     (0, 1, 2, 3, 4)
     >>> cfd__(_["maria"], chars)(dict)([("sofia", "piano"), ("maria", "violin")])
     ['v', 'i', 'o', 'l', 'i', 'n']
     """
-    return cfd_(*fs[::-1], rep=rep)
+    return cfd_(*reversed(fs), rep=rep)
 
 
 def g_(f):
-    """Build partially-applied methods using attribute getter 'f'.
+    """Build partially-applied methods using attribute getter ``f``.
     This is useful for expressing method chaining (fluent pattern)
     as function composition.
 
@@ -779,8 +782,8 @@ def g_(f):
     'sofia, maria'
     """
     guard(
-        hasattr(f, "f") and isinstance(f.f, op.attrgetter),
-        msg=f"error, not an attribute getter: {show(f)}",
+        type(f) is fx and isinstance(f.f, op.attrgetter),
+        msg=f"error, no attribute getter found: {show(f)}",
     )
 
     def go(*args, **kwargs):
@@ -790,7 +793,7 @@ def g_(f):
 
 
 def map(f, *xs):
-    """Symbol-composable 'map', which seamlessly extends 'builtins.map'
+    """fx-lifted ``map``, which seamlessly extends ``builtins.map``.
 
     >>> (collect ^ map(abs))(range(-2, 3)) | collect
     [2, 1, 0, 1, 2]
@@ -814,7 +817,7 @@ def map(f, *xs):
 
 
 def mapl(f, *xs):
-    """The same as 'map', but returns in 'list'.
+    """The same as ``map``, but returns in ``list``.
 
     >>> mapl(abs)(range(-2, 3))
     [2, 1, 0, 1, 2]
@@ -833,7 +836,7 @@ def mapl(f, *xs):
 
 @fx
 def filter(p, xs):
-    """The same as 'builtins.filter', but a composable.
+    """The same as ``builtins.filter``, but lifted by ``fx``.
 
     >>> (collect ^ filter(_ == "f"))("fun-on-functions")
     ['f', 'f']
@@ -855,7 +858,7 @@ def filter(p, xs):
 
 @fx
 def filterl(p, xs):
-    """The same as 'filter', but returns in 'list'.
+    """The same as ``filter``, but returns in ``list``.
 
     >>> (collect ^ filter(_ == "f"))("fun-on-functions")
     ['f', 'f']
@@ -877,16 +880,18 @@ def filterl(p, xs):
 
 @fx
 def zip(*xs, strict=False):
-    """The same as 'builtins.zip', but a composable.
+    """The same as ``builtins.zip``, but lifted by ``fx``.
 
-    >>> (collect ^ f_(zip, "LOVE") ^ range)(3)
-    [('L', 0), ('O', 1), ('V', 2)]
     >>> zip("LOVE", range(3)) | collect
     [('L', 0), ('O', 1), ('V', 2)]
-
-    >>> (collect ^ uncurry(zip))(("LOVE", range(3),))
+    >>> (f_(zip, "LOVE") ^ range)(3) | collect
     [('L', 0), ('O', 1), ('V', 2)]
-    >>> ("LOVE", range(3)) | uncurry(zip) | collect
+
+    Note that ``u_(zip)(x) equals zip(*x)`` for an iterable ``x``.
+
+    >>> (collect ^ u_(zip))(["LOVE", range(3)])
+    [('L', 0), ('O', 1), ('V', 2)]
+    >>> ["LOVE", range(3)] | u_(zip) | collect
     [('L', 0), ('O', 1), ('V', 2)]
     """
     return builtins.zip(*xs, strict=strict)
@@ -894,81 +899,44 @@ def zip(*xs, strict=False):
 
 @fx
 def zipl(*xs, strict=False):
-    """The same as 'zip', but returns in 'list'.
+    """The same as ``zip``, but returns in ``list``.
 
     >>> zipl("LOVE", range(3))
     [('L', 0), ('O', 1), ('V', 2)]
-    >>> ("LOVE", range(3)) | uncurry(zipl)
+    >>> (f_(zipl, "LOVE") ^ range)(3)
+    [('L', 0), ('O', 1), ('V', 2)]
+
+    Note that ``u_(zipl)(x) equals zipl(*x)`` for an iterable ``x``.
+
+    >>> u_(zipl)(["LOVE", range(3)])
+    [('L', 0), ('O', 1), ('V', 2)]
+    >>> ["LOVE", range(3)] | u_(zipl)
     [('L', 0), ('O', 1), ('V', 2)]
     """
     return zip(*xs, strict=strict) | collect
 
 
-@fx
-def unzip(xs):
-    """Reverse operation of 'zip' function.
-
-    >>> (collect ^ unzip ^ zip)("LOVE", range(3))
-    [('L', 'O', 'V'), (0, 1, 2)]
-    >>> unzip(zip("LOVE", range(3))) | collect
-    [('L', 'O', 'V'), (0, 1, 2)]
-    >>> zip("LOVE", range(3)) | unzip | collect
-    [('L', 'O', 'V'), (0, 1, 2)]
-    """
-    return zip(*xs)
-
-
-@fx
-def unzipl(x):
-    """The same as 'unzip', but returns in 'list'.
-
-    >>> unzipl(zip("LOVE", range(3)))
-    [('L', 'O', 'V'), (0, 1, 2)]
-    >>> zip("LOVE", range(3)) | unzipl
-    [('L', 'O', 'V'), (0, 1, 2)]
-    """
-    return unzip(x) | collect
-
-
 def rangel(*args, **kwargs):
-    """The same as 'range', but returns in 'list'.
+    """The same as ``range``, but returns in ``list``.
 
-    >>> rangel(10) == range(10) | collect
+    >>> rangel(10) == (range(10) | collect)
     True
     """
     return range(*args, **kwargs) | collect
 
 
 def enumeratel(xs, start=0):
-    """The same as 'enumerate', but returns in 'list'.
+    """The same as ``enumerate``, but returns in ``list``.
 
-    >>> enumeratel(range(10)) == enumerate(range(10)) | collect
+    >>> enumeratel(range(10)) == (enumerate(range(10)) | collect)
     True
     """
     return enumerate(xs, start=start) | collect
 
 
 @fx
-def rev(x, *xs):
-    """Return reversed sequence: this exends the 'reverse' function.
-    for given multiple args, it returns a reversed tuple of the arguments
-    otherwise, it returns only the reversed sequence like 'reverse'.
-
-    >>> rev(range(5))
-    [4, 3, 2, 1, 0]
-    >>> rev(range(5)) == range(5) | rev
-    True
-    >>> rev("dog")
-    ['g', 'o', 'd']
-    """
-    if xs:
-        return (x, *xs)[::-1]
-    else:
-        return list(x)[::-1]
-
-
 def takewhilel(p, xs):
-    """The same as 'takewhile', but returns in 'list'.
+    """The same as ``takewhile``, but returns in ``list``.
 
     >>> takewhilel(even, [2, 4, 6, 1, 3, 5])
     [2, 4, 6]
@@ -976,8 +944,9 @@ def takewhilel(p, xs):
     return takewhile(p, xs) | collect
 
 
+@fx
 def dropwhilel(p, xs):
-    """The same as 'dropwhile', but returns in 'list'.
+    """The same as ``dropwhile``, but returns in ``list``.
 
     >>> dropwhilel(even, [2, 4, 6, 1, 3, 5])
     [1, 3, 5]
@@ -987,7 +956,7 @@ def dropwhilel(p, xs):
 
 @fx
 def not_(x):
-    """`not` as a function.
+    """``not`` as a function.
 
     >>> not_(False)
     True
@@ -999,7 +968,7 @@ def not_(x):
 
 @fx
 def and_(a, b):
-    """`and` as a function.
+    """``and`` as a function.
 
     >>> and_(True, False)
     False
@@ -1011,7 +980,7 @@ def and_(a, b):
 
 @fx
 def or_(a, b):
-    """`or` as a function.
+    """``or`` as a function.
 
     >>> or_(True, False)
     True
@@ -1023,7 +992,7 @@ def or_(a, b):
 
 @fx
 def in_(a, b):
-    """`in` as a function.
+    """``in`` as a function.
 
     >>> in_("fun", "function")
     True
@@ -1035,7 +1004,7 @@ def in_(a, b):
 
 @fx
 def is_(a, b):
-    """`is` as a function.
+    """``is`` as a function.
 
     >>> is_("war", "LOVE")
     False
@@ -1047,7 +1016,7 @@ def is_(a, b):
 
 @fx
 def isnt_(a, b):
-    """`is not` as a function.
+    """``is not`` as a function.
 
     >>> isnt_("war", "LOVE")
     True
@@ -1059,7 +1028,7 @@ def isnt_(a, b):
 
 @fx
 def bimap(f, g, x):
-    """Map over both 'first' and 'second' arguments at the same time.
+    """Map over both ``first`` and ``second`` arguments at the same time.
     bimap(f, g) == first(f) . second(g)
 
     >>> bimap(_ + 3, _ * 7, (5, 7))
@@ -1096,7 +1065,7 @@ def second(g, x):
 
 @fx
 def until(p, f, x):
-    """Return the result of applying the given 'f' until the given 'p' holds
+    """Return the result of applying the given ``f`` until the given ``p`` holds
 
     >>> until(_ > 1024, _ * 3, 5)
     1215
@@ -1110,7 +1079,7 @@ def until(p, f, x):
 
 @fx
 def iterate(f, x):
-    """Return an infinite list of repeated applications of 'f' to 'x'.
+    """Return an infinite list of repeated applications of ``f`` to ``x``.
 
     >>> take(5, iterate(_ ** 2, 2))
     [2, 4, 16, 256, 65536]
@@ -1130,7 +1099,7 @@ def apply(f, *args, **kwargs):
     >>> apply(mapl, even, range(4))
     [True, False, True, False]
     """
-    return f(*args, **kwargs)
+    return fx(f)(*args, **kwargs)
 
 
 @fx
@@ -1166,7 +1135,7 @@ def foldr(f, inital, xs):
     >>> range(1, 5) | foldr(op.sub, 10)
     8
     """
-    return reduce(flip(f), xs[::-1], inital)
+    return reduce(flip(f), reversed(xs), inital)
 
 
 @fx
@@ -1178,7 +1147,7 @@ def foldr1(f, xs):
     >>> range(1, 5) | foldr1(op.sub)
     -2
     """
-    return reduce(flip(f), xs[::-1])
+    return reduce(flip(f), reversed(xs))
 
 
 @fx
@@ -1214,7 +1183,7 @@ def scanr(f, initial, xs):
     >>> range(1, 5) | scanr(op.sub, 10)
     [8, -7, 9, -6, 10]
     """
-    return accumulate(xs[::-1], flip(f), initial=initial) | rev
+    return accumulate(reversed(xs), flip(f), initial=initial) | rev
 
 
 @fx
@@ -1226,7 +1195,7 @@ def scanr1(f, xs):
     >>> range(1, 5) | scanr1(op.sub)
     [-2, 3, -1, 4]
     """
-    return accumulate(xs[::-1], flip(f)) | rev
+    return accumulate(reversed(xs), flip(f)) | rev
 
 
 @fx
@@ -1255,7 +1224,7 @@ def cartprod(*xs):
 
     >>> cartprod("↑↓", "↑↓") | collect
     [('↑', '↑'), ('↑', '↓'), ('↓', '↑'), ('↓', '↓')]
-    >>> ("↑↓", "↑↓") | uncurry(cartprod) | collect
+    >>> ("↑↓", "↑↓") | u_(cartprod) | collect
     [('↑', '↑'), ('↑', '↓'), ('↓', '↑'), ('↓', '↓')]
     """
     return cprod(*xs, repeat=1)
@@ -1263,11 +1232,11 @@ def cartprod(*xs):
 
 @fx
 def cartprodl(*xs):
-    """The same as 'cartprod', but returns in 'list'.
+    """The same as ``cartprod``, but returns in ``list``.
 
     >>> cartprodl("↑↓", "↑↓")
     [('↑', '↑'), ('↑', '↓'), ('↓', '↑'), ('↓', '↓')]
-    >>> ("↑↓", "↑↓") | uncurry(cartprodl)
+    >>> ("↑↓", "↑↓") | u_(cartprodl)
     [('↑', '↑'), ('↑', '↓'), ('↓', '↑'), ('↓', '↓')]
     """
     return cartprod(*xs) | collect
@@ -1287,7 +1256,7 @@ def concat(xs):
 
 @fx
 def concatl(xs):
-    """The same as 'concat', but returns in 'list'.
+    """The same as ``concat``, but returns in ``list``.
 
     >>> concatl(["so", "fia"])
     ['s', 'o', 'f', 'i', 'a']
@@ -1311,7 +1280,7 @@ def concatmap(f, x, *xs):
 
 @fx
 def concatmapl(f, x, *xs):
-    """The same as 'concatmap', but returns in 'list'.
+    """The same as ``concatmap``, but returns in ``list``.
 
     >>> concatmapl(str.upper, ["mar", "ia"])
     ['M', 'A', 'R', 'I', 'A']
@@ -1371,18 +1340,76 @@ def collect(x):
 
 
 @fx
+def rev(x):
+    """Take an iterable then return reversed strict sequence.
+
+    >>> rev(range(5))
+    [4, 3, 2, 1, 0]
+    >>> rev(range(5)) == range(5) | rev
+    True
+    >>> rev("dog")
+    'god'
+    """
+    return x[::-1] if isinstance(x, (str, bytes, bytearray)) else list(x)[::-1]
+
+
+def rg(i, j, k=None, l=None, /):
+    """Introduce intuitive Haskell-like lazy range notation.
+
+    +----------+---------------+----------------------------------------+
+    | Haskell  | rg function   | definition                             |
+    +----------+---------------+----------------------------------------+
+    | [a..]    | rg(a,...)     | [a, a+1, ..)                           |
+    +----------+---------------+----------------------------------------+
+    | [a..b]   | rg(a,...,b)   | [a, a+1, ..), till (a+n) <= b          |
+    +----------+---------------+----------------------------------------+
+    | [a,b..]  | rg(a,b,...)   | [a, a+(b-a), ..)                       |
+    +----------+---------------+----------------------------------------+
+    | [a,b..c] | rg(a,b,...,c) | [a, a+(b-a), ..), till (a+n(b-a)) <= c |
+    +----------+---------------+----------------------------------------+
+
+    >>> rg(3,...) | take(5)
+    [3, 4, 5, 6, 7]
+    >>> rg(3,...,5) | take(5)
+    [3, 4, 5]
+    >>> rg(3,7,...) | take(5)
+    [3, 7, 11, 15, 19]
+    >>> rg(3,7,...,17) | take(5)
+    [3, 7, 11, 15]
+    """
+
+    def ensure_dots(x):
+        guard(x == ..., f"invalid syntax, {x} must be '...'.")
+
+    if k is None and l is None:
+        ensure_dots(j)
+        return count(i)  # rg(a,...) == [a..]
+    elif k is None:
+        error(f"invalid syntax, {l} should not be given.")
+    elif l is None:
+        if j == ...:
+            return takewhile(lambda x: x <= k, count(i))  # rg(a,...,b) == [a..b]
+        else:
+            ensure_dots(k)
+            return count(i, j - i)  # rg(a,b,...) == [a,b..]
+    else:
+        ensure_dots(k)  # rg(a,b,...,c) == [a,b..c]
+        return takewhile(lambda x: x <= l, count(i, j - i))
+
+
+@fx
 def force(expr):
     """Forces the delayed-expression to be fully evaluated."""
     return expr() if callable(expr) else expr
 
 
 def error(msg="error", e=SystemExit):
-    """'raise' an exception with a function or expression."""
+    """``raise`` an exception with a function or expression."""
     raise e(msg) from None
 
 
 def safe(f):
-    """Make a given function return 'None' instead of raising an exception.
+    """Make a given function return ``None`` instead of raising an exception.
 
     >>> safe(error)("never-throw-errors")
     """
@@ -1412,14 +1439,14 @@ def trap(callback, e=None):
 
 
 def guard(p, msg="guard", e=SystemExit):
-    """'assert' as a function or expression."""
+    """``assert`` as a function or expression."""
     if not p:
         error(msg=msg, e=e)
 
 
 def guard_(f, msg="guard", e=SystemExit):
-    """Partial application builder for 'guard':
-    the same as 'guard', but the positional predicate is given
+    """Partial application builder for ``guard``:
+    the same as ``guard``, but the positional predicate is given
     as a function rather than an boolean expression.
     """
     return lambda x: seq(guard(f(x), msg=msg, e=e))(x)
@@ -1451,13 +1478,14 @@ def farity(f):
 
 @lru_cache
 def sig(f, reverse=False):
-    """Inspect the signature of a given function 'f' using 'inspect'"""
+    """Inspect the signature of a given function ``f`` using ``inspect``"""
     try:
         return (
             Signature(list(signature(f).parameters.values())[::-1])
             if reverse
             else signature(f)
         )
+        return signature(f)
     except:
         return None
 
@@ -1467,7 +1495,7 @@ def catalog():
     d = {}
     for fn in sort(__all__):
         f = eval(fn)
-        if not callable(f):
+        if not callable(f) or type(f) is xlambda:
             continue
         s = sig(eval(fn))
         d[fn] = s if s else "inspection not available"
@@ -1477,7 +1505,7 @@ def catalog():
 @lru_cache
 def show(f):
     """Stringify functions into human-readable form."""
-    if isinstance(f, fx):
+    if type(f) is fx:
         return f"fx({show(f.f)})"
     elif isinstance(f, partial):
         args = f", {', '.join(f'{x}' for x in f.args)}" if f.args else ""
@@ -1487,7 +1515,7 @@ def show(f):
             else ""
         )
         return f"f_({show(f.func)}{args}{kwargs})"
-    elif isinstance(f, FunctionType):
+    elif sig(f):
         return f"{f.__name__}{sig(f)}"
     elif hasattr(f, "__name__"):
         return f.__name__
@@ -1499,8 +1527,8 @@ class xlambda:
     """Scala-style lambda expression (unary or arity-1) builder,
     inspired by Scala's placeholder syntax for unary lambda expressions.
 
-    Using '_' placeholder makes it easy to write lambda expressions.
-    Just remove the 'lambda x:' and to replace 'x' with placeholder, '_'
+    Using ``_`` placeholder makes it easy to write lambda expressions.
+    Just remove the ``lambda x:`` and to replace ``x`` with placeholder, ``_``
 
     >>> (lambda x: x + 7)(3) == (_ + 7)(3)
     True
@@ -1510,19 +1538,23 @@ class xlambda:
     55
 
     Partial application using placeholders is also possible when accessing items
-    in 'dict', 'object' or 'iterable'.
+    in ``dict``, ``object`` or ``iterable``, or even calling functions.
 
-    +-----------+-----------------------+
-    | operator  | equiv-function        |
-    +-----------+-----------------------+
-    | '_[_]'    | 'op.getitem'          |
-    +-----------+-----------------------+
-    | '_[item]' | 'op.itemgetter(item)' |
-    +-----------+-----------------------+
-    | '_._'     | 'getattr'             |
-    +-----------+-----------------------+
-    | '_.attr'  | 'op.attrgetter(attr)' |
-    +-----------+-----------------------+
+    +----------------+-------------------------+
+    |    Operator    |   Equiv-Function        |
+    +----------------+-------------------------+
+    |  ``_[_]``      | ``op.getitem``          |
+    +----------------+-------------------------+
+    |  ``_[item]``   | ``op.itemgetter(item)`` |
+    +----------------+-------------------------+
+    |  ``_._``       | ``getattr``             |
+    +----------------+-------------------------+
+    |  ``_.attr``    | ``op.attrgetter(attr)`` |
+    +----------------+-------------------------+
+    |  ``_(_)``      | ``apply``               |
+    +----------------+-------------------------+
+    |  ``_(*a,**k)`` | ``lambda f: f(*a,**k)`` |
+    +----------------+-------------------------+
 
     >>> d = dict(one=1, two=2, three="three")
     >>> o = type('', (), {"one": 1, "two": 2, "three": "three"})()
@@ -1535,6 +1567,10 @@ class xlambda:
     're'
     >>> o | _.three | _[2:4]
     're'
+    >>> _(1, 2)(op.sub)
+    -1
+    >>> _(3 * _)(mapl)(range(1, 5))
+    [3, 6, 9, 12]
     """
 
     __slots__ = ()
@@ -1803,7 +1839,7 @@ class xlambda:
         >>> (_[3])(r) == (lambda x: x[3])(r)
         True
         """
-        if isinstance(o, xlambda):
+        if type(o) is xlambda:
             return f_(op.getitem)
         return f__(op.getitem, o)
 
@@ -1819,6 +1855,20 @@ class xlambda:
             return fx(lambda a, b: getattr(a, b))
         return fx(op.attrgetter(o))
 
+    def __call__(self, *args, **kwargs):
+        """
+        >>> _(1, 2)(op.sub)
+        -1
+        >>> _(_)(foldl)(op.add)(0)(range(5))
+        10
+        >>> _(7 * _)(mapl)(range(1, 10))
+        [7, 14, 21, 28, 35, 42, 49, 56, 63]
+        """
+        if len(args) == 1 and not kwargs and type(args[0]) is xlambda:
+            return f_(apply)
+        else:
+            return fx(lambda f: f(*args, **kwargs))
+
     def __repr__(self):
         return "xlambda()"
 
@@ -1827,10 +1877,8 @@ class xlambda:
 # aliases for convenience
 # -------------------------------
 uniq = nub
-xargs = uncurry
 zipwith = mapl
 sort = fx(sorted)
-reverse = fx(reversed)
 length = fx(len)
 abs = fx(abs)
 sum = fx(sum)
@@ -1841,6 +1889,8 @@ chr = fx(chr)
 all = fx(all)
 any = fx(any)
 divmod = fx(divmod)
+takewhile = fx(takewhile)
+dropwhile = fx(dropwhile)
 lazy = f_
 c_ = curry
 u_ = uncurry

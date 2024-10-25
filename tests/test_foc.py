@@ -14,8 +14,8 @@ def d():
     ]
 
 
-def fn(a, b, c, d):
-    return f"{a}-{b}-{c}-{d}"
+def fn(a, b):
+    return f"{a}-{b}"
 
 
 def test_safe():
@@ -134,7 +134,7 @@ def test_product():
 
 
 def test_flip():
-    assert fn(4, 3, 2, 1) == flip(fn)(1, 2, 3, 4)
+    assert fn(2, 1) == flip(fn)(1, 2)
 
 
 def test_f_f__():
@@ -142,9 +142,10 @@ def test_f_f__():
     assert f__(op.add, 5)(2) == 7
     assert f_(op.sub, 5)(2) == 3
     assert f__(op.sub, 5)(2) == -3
-    assert f_(fn, 1, 2)(3, 4) == "1-2-3-4"
-    assert f_(fn, 1, 2, 3)(4) == "1-2-3-4"
-    assert f__(fn, 1, 2)(3, 4) == "4-3-2-1"
+    assert f_(fn, 1)(2) == "1-2"
+    assert f_(fn)(1, 2) == "1-2"
+    assert f__(fn, 1)(2) == "2-1"
+    assert f__(fn)(1, 2) == "2-1"
 
 
 def test_curry():
@@ -153,9 +154,9 @@ def test_curry():
     assert c_(op.sub)(5)(2) == 3
     assert c_(op.sub)(2)(5) == -3
     assert c_(op.sub)(5)(2) == c__(op.sub)(2)(5)
-    assert c_(fn)(1)(2)(3)(4) == "1-2-3-4"
-    assert c_(fn)(4)(3)(2)(1) == "4-3-2-1"
-    assert c_(fn)(4)(3)(2)(1) == c__(fn)(1)(2)(3)(4)
+    assert c_(fn)(1)(2) == "1-2"
+    assert c__(fn)(1)(2) == "2-1"
+    assert c_(fn)(1)(2) == c__(fn)(2)(1)
 
 
 def test_cf_():
@@ -184,7 +185,7 @@ def test_filterl():
 def test_rev():
     assert rev((1, 2, 3, 4)) == [4, 3, 2, 1]
     assert rev(range(1, 5)) == [4, 3, 2, 1]
-    assert rev("sofia") == ["a", "i", "f", "o", "s"]
+    assert rev("sofia") == "aifos"
     assert rev([]) == []
 
 
@@ -217,7 +218,7 @@ def test_iterate():
 
 
 def test_apply():
-    assert apply(fn, 1, 2, 3, 4) == "1-2-3-4"
+    assert apply(fn, 1, 2) == "1-2"
 
 
 def test_foldl():

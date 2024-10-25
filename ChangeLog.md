@@ -150,6 +150,14 @@
 
 # 0.5.0
 - A huge update across the project
-- **Separated lots of utility functions into 'ouch' project.**
+- **Separated lots of utility functions into `ouch` project.**
 - Introduced place holder lambda expression.
 - Add `g_`, object method partial application builder
+
+# 0.5.2
+- Add `rg`, _Haskell-like_ range notation 
+- Add `unfx`, `_(_)` operator
+- Fix `rev`, `uncurry`, `repeat`, and `replicate`
+- Remove `xargs`, `reverse`, `unzip` and `unzipl`
+- Remove `composable`!
+
