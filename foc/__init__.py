@@ -10,7 +10,7 @@ from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 __all__ = [
     "_",
@@ -102,7 +102,6 @@ __all__ = [
     "repeat",
     "replicate",
     "rev",
-    "rg",
     "safe",
     "scanl",
     "scanl1",
@@ -118,6 +117,7 @@ __all__ = [
     "take",
     "takewhile",
     "takewhilel",
+    "tap",
     "trap",
     "u_",
     "unchars",
@@ -254,18 +254,6 @@ def const(x, _):
     >>> const(5, "no-matther-what-comes-here")
     5
     >>> 'whatever' | const(5)
-    5
-    """
-    return x
-
-
-@fx
-def seq(_, x):
-    """Return the id function after consuming the given argument.
-
-    >>> seq("only-returns-the-following-arg", 5)
-    5
-    >>> 5 | seq('whatever')
     5
     """
     return x
@@ -1353,48 +1341,46 @@ def rev(x):
     return x[::-1] if isinstance(x, (str, bytes, bytearray)) else list(x)[::-1]
 
 
-def rg(i, j, k=None, l=None, /):
-    """Introduce intuitive Haskell-like lazy range notation.
+def seq(i, j=None, k=None, /):
+    """Introduce intuitive Haskell-like lazy sequence notation.
+    +--------------+------------------+----------------------------------------+
+    | ``Haskell``  | ``seq``          | definition                             |
+    +--------------+------------------+----------------------------------------+
+    | ``[1..a]``   | ``seq(a)``       | [1, 2, ..), till n <= a                |
+    +--------------+------------------+----------------------------------------+
+    | ``[a..]``    | ``seq(a,...)``   | [a, a+1, ..)                           |
+    +--------------+------------------+----------------------------------------+
+    | ``[a..b]``   | ``seq(a,b)``     | [a, a+1, ..), till (a+n) <= b          |
+    +--------------+------------------+----------------------------------------+
+    | ``[a,b..]``  | ``seq(a,b,...)`` | [a, a+(b-a), ..)                       |
+    +--------------+------------------+----------------------------------------+
+    | ``[a,b..c]`` | ``seq(a,b,c)``   | [a, a+(b-a), ..), till (a+n(b-a)) <= c |
+    +--------------+------------------+----------------------------------------+
 
-    +----------+---------------+----------------------------------------+
-    | Haskell  | rg function   | definition                             |
-    +----------+---------------+----------------------------------------+
-    | [a..]    | rg(a,...)     | [a, a+1, ..)                           |
-    +----------+---------------+----------------------------------------+
-    | [a..b]   | rg(a,...,b)   | [a, a+1, ..), till (a+n) <= b          |
-    +----------+---------------+----------------------------------------+
-    | [a,b..]  | rg(a,b,...)   | [a, a+(b-a), ..)                       |
-    +----------+---------------+----------------------------------------+
-    | [a,b..c] | rg(a,b,...,c) | [a, a+(b-a), ..), till (a+n(b-a)) <= c |
-    +----------+---------------+----------------------------------------+
-
-    >>> rg(3,...) | take(5)
+    >>> seq(3) | collect
+    [1, 2, 3]
+    >>> seq(3,...) | take(5)
     [3, 4, 5, 6, 7]
-    >>> rg(3,...,5) | take(5)
+    >>> seq(3,5) | take(5)
     [3, 4, 5]
-    >>> rg(3,7,...) | take(5)
+    >>> seq(3,7,...) | take(5)
     [3, 7, 11, 15, 19]
-    >>> rg(3,7,...,17) | take(5)
+    >>> seq(3,7,17) | take(5)
     [3, 7, 11, 15]
     """
 
-    def ensure_dots(x):
-        guard(x == ..., f"invalid syntax, {x} must be '...'.")
-
-    if k is None and l is None:
-        ensure_dots(j)
-        return count(i)  # rg(a,...) == [a..]
-    elif k is None:
-        error(f"invalid syntax, {l} should not be given.")
-    elif l is None:
-        if j == ...:
-            return takewhile(lambda x: x <= k, count(i))  # rg(a,...,b) == [a..b]
-        else:
-            ensure_dots(k)
-            return count(i, j - i)  # rg(a,b,...) == [a,b..]
+    if k is None:
+        if j is None:  # seq(a) == [1..a]
+            return range(1, i + 1)
+        elif j == ...:  # seq(a,...) == [a..]
+            return count(i)
+        else:  # seq(a,b) == [a..b]
+            return range(i, j + 1)
     else:
-        ensure_dots(k)  # rg(a,b,...,c) == [a,b..c]
-        return takewhile(lambda x: x <= l, count(i, j - i))
+        if k == ...:  # seq(a,b,...) == [a,b..]
+            return count(i, j - i)
+        else:  # seq(a,b,c) == [a,b..c]
+            return takewhile(lambda x: x <= k, count(i, j - i))
 
 
 @fx
@@ -1404,7 +1390,19 @@ def force(expr):
 
 
 def error(msg="error", e=SystemExit):
-    """``raise`` an exception with a function or expression."""
+    """``raise`` an exception with a function or expression.
+
+    >>> error("an error occured.")
+    Traceback (most recent call last):
+    ...
+    SystemExit: an error occured.
+
+    >>> error("something wrong.", e=TypeError)
+    Traceback (most recent call last):
+    ...
+    TypeError: something wrong.
+    """
+
     raise e(msg) from None
 
 
@@ -1438,8 +1436,33 @@ def trap(callback, e=None):
     return catcher
 
 
+def tap(f, void=False):
+    """Wraps a function to perform an 'IO' action with/without an argument.
+    This enables to ``tap`` into a sequence of operations by performing
+    some side effect via the function ``f``.
+
+    >>> tap(lambda x: print(f"Logging value: {x}"))(42)
+    Logging value: 42
+    42
+    """
+
+    def go(x):
+        f() if void else f(x)
+        return x
+
+    return go
+
+
 def guard(p, msg="guard", e=SystemExit):
-    """``assert`` as a function or expression."""
+    """``assert`` as a function or expression.
+
+    >>> guard(7 > 5, "error, must be greater than 5.")
+
+    >>> guard(3 > 5, "error, must be greater than 5.", e=ValueError)
+    Traceback (most recent call last):
+    ...
+    ValueError: error, must be greater than 5.
+    """
     if not p:
         error(msg=msg, e=e)
 
@@ -1447,9 +1470,16 @@ def guard(p, msg="guard", e=SystemExit):
 def guard_(f, msg="guard", e=SystemExit):
     """Partial application builder for ``guard``:
     the same as ``guard``, but the positional predicate is given
-    as a function rather than an boolean expression.
+    as a function rather than a boolean expression.
+
+    >>> guard_(_ > 5, "error, must be greater than 5.")(7)
+    7
+    >>> guard_(_ > 5, "error, must be greater than 5.", e=ValueError)(3)
+    Traceback (most recent call last):
+    ...
+    ValueError: error, must be greater than 5.
     """
-    return lambda x: seq(guard(f(x), msg=msg, e=e))(x)
+    return tap(lambda x: guard(f(x), msg=msg, e=e))
 
 
 @lru_cache
@@ -1515,7 +1545,7 @@ def show(f):
             else ""
         )
         return f"f_({show(f.func)}{args}{kwargs})"
-    elif sig(f):
+    elif sig(f) and hasattr(f, "__name__"):
         return f"{f.__name__}{sig(f)}"
     elif hasattr(f, "__name__"):
         return f.__name__

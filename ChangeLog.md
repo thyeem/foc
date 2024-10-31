@@ -161,3 +161,8 @@
 - Remove `xargs`, `reverse`, `unzip` and `unzipl`
 - Remove `composable`!
 
+# 0.5.3
+- Add `tap` (`IO` action)
+- Remove `seq` (unnecessary in `python`)
+- Rename `rg` to `seq` (flexible sequence generation)
+- Bug fixes

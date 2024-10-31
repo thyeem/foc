@@ -29,13 +29,13 @@ For more examples, see the [documentation](https://github.com/thyeem/foc/blob/ma
 >>> (_ + 7)(3)  # (lambda x: x + 7)(3)
 10
 
->>> 3 | (_ + 4) | (_ * 6)  # (3 + 4) * 6
+>>> 3 | _ + 4 | _ * 6  # (3 + 4) * 6
 42
 
 >>> (length ^ range)(10)  # length(range(10))
 10
 
->>> cf_(rev, filter(even), range)(10)  # (rev ^ filter(even) ^ range)(10)
+>>> cf_(rev, filter(even), range)(10)  # rev(filter(even)(range(10)))
 [8, 6, 4, 2, 0]
 
 >>> ((_ * 5) ^ nth(3) ^ range)(5)  # range(5)[3] * 5
@@ -44,7 +44,7 @@ For more examples, see the [documentation](https://github.com/thyeem/foc/blob/ma
 >>> cf_(sum, map(_ + 1), range)(10)  # sum(map(_ + 1, range(10)))
 55
 
->>> range(5) | map((_ * 3) ^ (_ + 2)) | sum  # sum(map(cf_(_*3, _+2), range(5)))
+>>> range(5) | map((_ * 3) ^ (_ + 2)) | sum  # sum(map(lambda x: (x + 2) * 3, range(5)))
 60
 
 >>> range(73, 82) | map(chr) | unchars  # unchars(map(chr, range(73, 82)))
@@ -80,7 +80,7 @@ TypeError: unsupported operand ...
 42
 
 >>> @fx
-... def func(arg):    # apply to function definition or bind 'g = fx(func)'
+... def func(arg):    # place @fx above the definition or bind 'g = fx(func)'
 ...     ...           # 'func' is now 'composable' with symbols
 ```
 > Most of the functions provided by `foc` are `fx` functions.   
@@ -91,9 +91,9 @@ TypeError: unsupported operand ...
 ```python
 # map := map(predicate, iterable)
 # currying 'map' -> map(predicate)(iterable)
->>> map(_ * 8)(rg(1,...)) | take(5)    # rg(1,...) == [1,2,3,..], 'infinite' sequence
-[8, 16, 24, 32, 40]                    # rg(1,3,...) == [1,3,5,..]
-                                       # rg(1,4,...,11) == [1,4,7,10]
+>>> map(_ * 8)(seq(1,...)) | take(5)   # seq(1,...) == [1,2,3,..], 'infinite' sequence
+[8, 16, 24, 32, 40]                    # seq(1,3,...) == [1,3,5,..]
+                                       # seq(1,4,,11) == [1,4,7,10]
 
 # bimap := bimap(f, g, tuple)
 # bimap(f, g) := first(f) ^ second(g)  # map over both 'first' and 'second' argument
@@ -143,26 +143,26 @@ True
 ```python
 # dict
 >>> d = dict(one=1, two=2, three="three")
->>> (_[_])(d)("two")  # curry(lambda a, b: a[b])(d)("two")
+>>> _[_](d)("two")  # curry(lambda a, b: a[b])(d)("two")
 2
->>> (_["one"])(d)  # (lambda x: x["one"])(d)
+>>> _["one"](d)  # (lambda x: x["one"])(d)
 1
 >>> cf_(_[2:4], _["three"])(d)  # d["three"][2:4]
 're'
 
 # iterable
 >>> r = range(5)
->>> (_[_])(r)(3)  # curry(lambda a, b: a[b])(r)(3)
-True
->>> (_[3])(r)  # (lambda x: x[3])(r)
-True
+>>> _[_](r)(3)  # curry(lambda a, b: a[b])(r)(3)
+3
+>>> _[3](r)     # (lambda x: x[3])(r)
+3
 
 # object
 >>> o = type('', (), {"one": 1, "two": 2, "three": "three"})()
->>> (_._)(o)("two")  # curry(lambda a, b: getattr(a, b))(o)("two")
-True
->>> (_.one)(o)  # (lambda x: x.one)(o)
-True
+>>> _._(o)("two")  # curry(lambda a, b: getattr(a, b))(o)("two")
+2
+>>> _.one(o)  # (lambda x: x.one)(o)
+1
 >>> o | _.three | _[2:4]  # o.three[2:4]
 're'
 
@@ -181,10 +181,10 @@ True
 
 [Everything in one place](https://github.com/thyeem/foc/blob/main/foc/__init__.py).
 
-- `fx` _pure basic functions_ `id`, `const`, `seq`, `take`, `drop`, `repeat`, `replicate`..
+- `fx` _pure basic functions_ `id`, `const`, `take`, `drop`, `repeat`, `replicate`..
 - _higher-order_ functions like `f_`, `g_`, `curry`, `uncurry`, `flip`, `map`, `filter`, `zip`,.. 
 - _function composition_ tools like  `cf_`, `cfd_`, ..
--  useful yet very fundamental like `rg`, `force`, `trap`, `error`, `guard`,..
+-  useful yet very fundamental like `seq`, `force`, `trap`, `error`, `guard`,..
 
 ## Real-World Example
 A _causal self-attention_ of the `transformer` model based on `pytorch` can be described as follows.  
