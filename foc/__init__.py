@@ -10,7 +10,7 @@ from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile
 
-__version__ = "0.5.3"
+__version__ = "0.5.4"
 
 __all__ = [
     "_",
@@ -44,6 +44,7 @@ __all__ = [
     "deque",
     "divmod",
     "drop",
+    "dropl",
     "dropwhile",
     "dropwhilel",
     "elem",
@@ -101,6 +102,7 @@ __all__ = [
     "rangel",
     "repeat",
     "replicate",
+    "replicatel",
     "rev",
     "safe",
     "scanl",
@@ -115,6 +117,7 @@ __all__ = [
     "sum",
     "tail",
     "take",
+    "takel",
     "takewhile",
     "takewhilel",
     "tap",
@@ -309,11 +312,17 @@ def nth(n, x):
 def take(n, x):
     """Take ``n`` items from a given iterable ``x``.
 
-    >>> take(3, range(5, 10))
+    >>> (collect ^ take(3))(range(5, 10))
     [5, 6, 7]
     >>> range(5, 10) | take(3) | collect
     [5, 6, 7]
     """
+    return islice(x, n)
+
+
+@fx
+def takel(n, x):
+    """The same as ``take``, but returns in ``list``."""
     return islice(x, n) | collect
 
 
@@ -327,6 +336,18 @@ def drop(n, x):
     ['h', 'u', 'b']
     """
     return islice(x, n, None)
+
+
+@fx
+def dropl(n, x):
+    """The same as ``drop``, but returns in ``list``.
+
+    >>> dropl(3, 'github')
+    ['h', 'u', 'b']
+    >>> 'github' | dropl(3)
+    ['h', 'u', 'b']
+    """
+    return islice(x, n, None) | collect
 
 
 @fx
@@ -582,9 +603,9 @@ def nub(x):
 def repeat(x):
     """Create an infinite list with the argument ``x``.
 
-    >>> take(3, repeat(5))
+    >>> take(3, repeat(5)) | collect
     [5, 5, 5]
-    >>> repeat(5) | take(3)
+    >>> (collect ^ take(3) ^ repeat)(5)
     [5, 5, 5]
     """
     return (x for _ in count())
@@ -594,12 +615,26 @@ def repeat(x):
 def replicate(n, x):
     """Get a list of length `n` from an infinite list with `x` values.
 
-    >>> replicate(3, 5)
+    >>> replicate(3, 5) | collect
     [5, 5, 5]
-    >>> 5 | replicate(3)
+    >>> 5 | replicate(3) | collect
+    [5, 5, 5]
+    >>> (collect ^ replicate(3))(5)
     [5, 5, 5]
     """
     return take(n, repeat(x))
+
+
+@fx
+def replicatel(n, x):
+    """The same as ``replicate``, but returns in ``list``.
+
+    >>> replicatel(3, 5)
+    [5, 5, 5]
+    >>> 5 | replicatel(3)
+    [5, 5, 5]
+    """
+    return takel(n, repeat(x))
 
 
 @fx
@@ -816,10 +851,7 @@ def mapl(f, *xs):
     >>> [4, 5, 6] | mapl(op.mul, [1, 2, 3])
     [4, 10, 18]
     """
-    if xs and len(xs) >= farity(f):  # when populated args
-        return builtins.map(f, *xs) | collect
-    else:
-        return cfd_(list)(f_(builtins.map, f, *xs))
+    return map(f, *xs) | collect
 
 
 @fx
@@ -1069,9 +1101,9 @@ def until(p, f, x):
 def iterate(f, x):
     """Return an infinite list of repeated applications of ``f`` to ``x``.
 
-    >>> take(5, iterate(_ ** 2, 2))
+    >>> take(5, iterate(_ ** 2, 2)) | collect
     [2, 4, 16, 256, 65536]
-    >>> 2 | iterate(_ ** 2) | take(5)
+    >>> 2 | iterate(_ ** 2) | take(5) | collect
     [2, 4, 16, 256, 65536]
     """
     while True:
@@ -1079,6 +1111,7 @@ def iterate(f, x):
         x = f(x)
 
 
+@fx
 def apply(f, *args, **kwargs):
     """Call a given function with the given arguments.
 
@@ -1359,14 +1392,16 @@ def seq(i, j=None, k=None, /):
 
     >>> seq(3) | collect
     [1, 2, 3]
-    >>> seq(3,...) | take(5)
+    >>> seq(3,...) | takel(5)
     [3, 4, 5, 6, 7]
-    >>> seq(3,5) | take(5)
+    >>> seq(3,5) | collect
     [3, 4, 5]
-    >>> seq(3,7,...) | take(5)
+    >>> seq(3,7,...) | takel(5)
     [3, 7, 11, 15, 19]
-    >>> seq(3,7,17) | take(5)
+    >>> seq(3,7,17) | takel(5)
     [3, 7, 11, 15]
+    >>> zipwith(op.add, seq(1, 5), seq(6,...))
+    [7, 9, 11, 13, 15]
     """
 
     if k is None:

@@ -166,3 +166,7 @@
 - Remove `seq` (unnecessary in `python`)
 - Rename `rg` to `seq` (flexible sequence generation)
 - Bug fixes
+
+# 0.5.4
+- Revert `take` to a lazy function form.
+- Add `takel`, `dropl`, and `replicatel`

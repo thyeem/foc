@@ -44,8 +44,8 @@ def test_nth():
 
 
 def test_take():
-    assert take(3, range(5, 10)) == [5, 6, 7]
-    assert take(0, range(5, 10)) == []
+    assert take(3, range(5, 10)) | collect == [5, 6, 7]
+    assert take(0, range(5, 10)) | collect == []
 
 
 def test_drop():
@@ -126,7 +126,7 @@ def test_unlines():
 
 
 def test_replicate():
-    assert replicate(3, 5) == [5, 5, 5]
+    assert replicate(3, 5) | collect == [5, 5, 5]
 
 
 def test_product():
@@ -214,7 +214,7 @@ def test_until():
 
 
 def test_iterate():
-    assert take(5, iterate(_**2, 2)) == [2, 4, 16, 256, 65536]
+    assert take(5, iterate(_**2, 2)) | collect == [2, 4, 16, 256, 65536]
 
 
 def test_apply():
