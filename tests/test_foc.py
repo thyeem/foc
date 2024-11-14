@@ -163,14 +163,6 @@ def test_cf_():
     assert cf_(_ * 7, _ + 5, 3**_)(2) == 98
 
 
-def test_cfd_():
-    @cfd_(_ * 7, _ + 5, _**3)
-    def f(x, y):
-        return x**2 + y**2
-
-    assert f(3, 4) == 109410
-
-
 def test_mapl():
     fn = _ * 8
     assert mapl(fn, range(1, 6)) == [8, 16, 24, 32, 40]

@@ -10,45 +10,103 @@ _Func-Oriented Code_ or _Francis' Odd Collection_.
 
 
 - provides a collection of ___higher-order functions___ and ___placeholder lambda syntax___ (`_`)
-- provides an easy way to ___compose functions with symbols___. (`^` and `|`)
-
-> _The collection of utilities contained in previous versions has been separated into a [new project](https://github.com/thyeem/ouch)_.
-
-## Install
-```bash
-$ pip install -U foc
-```
-
-## Use
-
-For more examples, see the [documentation](https://github.com/thyeem/foc/blob/main/foc/__init__.py#L150) provided with each function.
+- provides an easy way to ___compose functions with symbols___. (`.` and `|`)
 
 ```python
 >>> from foc import *
 
->>> (_ + 7)(3)  # (lambda x: x + 7)(3)
-10
-
->>> 3 | _ + 4 | _ * 6  # (3 + 4) * 6
-42
-
->>> (length ^ range)(10)  # length(range(10))
-10
-
->>> cf_(rev, filter(even), range)(10)  # rev(filter(even)(range(10)))
-[8, 6, 4, 2, 0]
-
->>> ((_ * 5) ^ nth(3) ^ range)(5)  # range(5)[3] * 5
-10
-
->>> cf_(sum, map(_ + 1), range)(10)  # sum(map(_ + 1, range(10)))
+# in standard Python, we normally use, 
+>>> sum(map(lambda x: x+1, range(10))) 
 55
 
->>> range(5) | map((_ * 3) ^ (_ + 2)) | sum  # sum(map(lambda x: (x + 2) * 3, range(5)))
-60
+# 'foc' allows three more things:
+>>> cf_(sum, map(_ + 1))(range(10))    # using the 'cf_' compose function
+55
+
+>>> (sum . map(_ + 1))(range(10))      # using '.' mathematical symbol (:P)
+55
+
+>>> range(10) | map(_ + 1) | sum       # using '|' Unix pipeline style
+55
+
+# Scala-style placeholder syntax lambda expression 
+>>> (_ + 7)(3)                  # same as (lambda x: x + 7)(3)
+10
+
+# (3 + 4) * 6
+>>> cf_(_ * 6, _ + 4)(3)        # function.
+42                             
+                               
+>>> 3 | _ + 4 | _ * 6           # pipeline.
+42                             
+                               
+>>> ((_ * 6) . fx(_ + 4))(3)    # dot. Wrap 'lambda expression' in 'fx' when using '.'.
+42
+```
+
+Remember that it is only necessary to use `fx` _when using lambda expressions and `.`.    
+That's all.   
+
+For more examples, see the [documentation](https://github.com/thyeem/foc/blob/main/foc/__init__.py#L150) provided with each function.
+
+```python
+>>> (rev . filter(even) . range)(10)  # list(reversed(filter(even, range(10))))
+[8, 6, 4, 2, 0]
+
+>>> ((_ * 5) . nth(3) . range)(5)  # range(5)[3] * 5
+10
+
+>>> (collect . filter(_ == "f"))("fun-on-functions")  # list(filter(lambda x: x == "f", "fun-on-functions"))
+['f', 'f']
+
+# To use built-ins 'list' on the fly, 
+>>> (fx(list) . map(abs) . range)(-2, 3)  # list(map(abs, range(-2, 3)))
+[2, 1, 0, 1, 2]
 
 >>> range(73, 82) | map(chr) | unchars  # unchars(map(chr, range(73, 82)))
 'IJKLMNOPQ'
+```
+
+## _Ouch_
+[`ouch`](https://github.com/thyeem/ouch) is a collection of utilities that are based on and aligned with `foc`.
+
+```python
+from ouch import *
+
+# soft/hard flatten
+>>> [1, [(2,), [[{3}, (x for x in range(3))]]]] | flat | collect
+[1, 2, 3, 0, 1, 2]
+
+# 'shell' command
+>>> shell(f"du -hs foc/__init__.py 2>/dev/null") | fst | g_(_.split)()
+['44K', 'foc/__init__.py']
+
+# 'ls' command
+>>> ls(".", r=True, grep="^(foc).*py$")
+['foc/__init__.py']
+
+# dot-accessible dict
+>>> d = dmap(name="yunchan lim", age=19)
+>>> d.cliburn.semifinal.concerto = "Mozart Piano Concerto No.22, K.482"
+>>> d.cliburn.semifinal.recital = "Liszt 12 Transcendental Etudes"
+>>> d.cliburn.final = "Rachmaninov Piano Concerto No.3, Op.30"
+>>> d | nprint
+ cliburn  |      final  |  Rachmaninov Piano Concerto No.3, Op.30
+          :  semifinal  |  concerto  |  Mozart Piano Concerto No.22, K.482
+          :             :   recital  |  Liszt 12 Transcendental Etudes
+    name  |  yunchan lim
+    
+# and more ...
+```
+
+> To see all the functions provided by `foc`, 
+```python
+>>> catalog() | nprint
+```
+
+## Install
+```bash
+$ pip install -U foc
 ```
 
 ## What is `fx`?
@@ -61,7 +119,7 @@ For more examples, see the [documentation](https://github.com/thyeem/foc/blob/ma
 There are two ways to compose functions with symbols as shown in _the previous section_.
 | Symbol                | Description                                             | Evaluation Order | Same as in Haskell |
 |:---------------------:|:-------------------------------------------------------:|:----------------:|:------------------:|
-| **`^`** (_caret_)     | Same as dot(`.`) _mathematical symbol_                  | _Right-to-Left_  | `(<=<)`            |
+| **`.`** (_dot_)       | Same as dot(`.`) _mathematical symbol_                  | _Right-to-Left_  | `(<=<)`            |
 | **`\|`** (_pipeline_) | In _Unix_ pipeline manner                               | _Left-to-Right_  | `(>=>)`            |
 | `fx`                  | _Lift function_. Convert functions into _monadic_ forms | -                | `(pure .)`         |
 
@@ -89,28 +147,18 @@ TypeError: unsupported operand ...
 ### 3. **`fx` is a curried function.**
 
 ```python
-# map := map(predicate, iterable)
 # currying 'map' -> map(predicate)(iterable)
->>> map(_ * 8)(seq(1,...)) | take(5)   # seq(1,...) == [1,2,3,..], 'infinite' sequence
-[8, 16, 24, 32, 40]                    # seq(1,3,...) == [1,3,5,..]
-                                       # seq(1,4,,11) == [1,4,7,10]
+>>> map(_ * 8)(seq(1,...)) | takel(5)   # seq(1,...) == [1,2,3,..], 'infinite' sequence
+[8, 16, 24, 32, 40]                    
 
-# bimap := bimap(f, g, tuple)
-# bimap(f, g) := first(f) ^ second(g)  # map over both 'first' and 'second' argument
+# bimap := bimap(f, g, tuple), map over both 'first' and 'second' argument
 >>> bimap(_ + 3)(_ * 7)((5, 7))
 (8, 49)
->>> (5, 7) | bimap(_ + 3)(_ * 7)
-(8, 49)
-
->>> filterl(_ == "f")("fun-on-functions")    # filterl == (filter | collect)
-['f', 'f']
 >>> foldl(op.sub)(10)(range(1, 5))
 0
-
-@fx
-def args(a, b, c, d):
-    return f"{a}-{b}-{c}-{d}"
-
+>>> @fx
+... def args(a, b, c, d):
+...     return f"{a}-{b}-{c}-{d}"
 >>> args(1)(2)(3)(4) == args(1,2)(3,4) == args(1,2,3)(4) == args(1)(2,3,4) == args(1,2,3,4)
 True
 ```
@@ -122,15 +170,15 @@ True
 ```python
 >>> [1, 2, 3] | sum | (_ * 7)    # Use '_' lambda instead.
 42
->>> ((_ * 6) ^ (_ + 4))(3)       # (3 + 4) * 6
+>>> ((_ * 6) . fx(_ + 4))(3)     # (3 + 4) * 6
 42
 >>> 2 | (_ * 7) | (60 % _) | (_ // 3)   # (60 % (2 * 7)) // 3
 1
 ```
 
-**Partial application** driven by `_` is also possible when accessing `dict`, `object` or `iterable`, or even _calling functions_. How about using `_(_)` as a **curried function caller**?   
+**Partial application** driven by `_` is also possible when accessing `dict`, `object` or `iterable`, or even _calling functions_. 
 
-| Operator       | Equiv Function           |
+| Operator       | Equivalent Function      |
 |----------------|--------------------------|
 | `_[_]`         | `op.getitem`             |
 | `_[item]`      | `op.itemgetter(item)`    |
@@ -177,13 +225,11 @@ True
 ```
 
 ## Don't forget that `foc` is a collection, _albeit very odd_.
-> To see all the functions provided by `foc`, run `catalog()`.  
 
 [Everything in one place](https://github.com/thyeem/foc/blob/main/foc/__init__.py).
 
 - `fx` _pure basic functions_ `id`, `const`, `take`, `drop`, `repeat`, `replicate`..
-- _higher-order_ functions like `f_`, `g_`, `curry`, `uncurry`, `flip`, `map`, `filter`, `zip`,.. 
-- _function composition_ tools like  `cf_`, `cfd_`, ..
+- _higher-order_ functions like `cf_`, `f_`, `g_`, `curry`, `uncurry`, `map`, `filter`, `zip`,.. 
 -  useful yet very fundamental like `seq`, `force`, `trap`, `error`, `guard`,..
 
 ## Real-World Example

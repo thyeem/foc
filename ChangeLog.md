@@ -170,3 +170,9 @@
 # 0.5.4
 - Revert `take` to a lazy function form.
 - Add `takel`, `dropl`, and `replicatel`
+
+# 0.6.0
+- Return to function composition using `.` _dot notation_.
+- Remove redundant `cfd_`, `cfd__` and `pair`.
+- Add `on` and `pack`.
+- Add `__signature__` to make the function easier to trace.

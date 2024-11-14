@@ -4,13 +4,13 @@ import operator as op
 import sys
 from collections import deque
 from collections.abc import Iterable, Iterator
-from functools import lru_cache, partial, reduce, wraps
+from functools import lru_cache, partial, reduce, update_wrapper, wraps
 from inspect import Signature, signature
 from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
-from itertools import takewhile
+from itertools import takewhile, zip_longest
 
-__version__ = "0.5.4"
+__version__ = "0.6.0"
 
 __all__ = [
     "_",
@@ -27,8 +27,6 @@ __all__ = [
     "catalog",
     "cf_",
     "cf__",
-    "cfd_",
-    "cfd__",
     "chars",
     "chr",
     "collect",
@@ -92,10 +90,11 @@ __all__ = [
     "nub",
     "null",
     "odd",
+    "on",
     "op",
     "or_",
     "ord",
-    "pair",
+    "pack",
     "permutation",
     "pred",
     "product",
@@ -152,50 +151,50 @@ class fx:
     ``fx`` stands for 'Function eXtension' which can lift all kinds of functions.
     ``fx`` allows functions to be composed in two intuitive ways with symbols.
 
-    +---------------+-----------------------------------------+---------------+
-    |     symbol    |               description               |  eval-order   |
-    +---------------+-----------------------------------------+---------------+
-    | ``^`` (caret) | same as dot(``.``) mathematical symbol  | right-to-left |
-    +---------------+-----------------------------------------+---------------+
-    | ``|`` (pipe)  | in Unix pipeline (``|``) manner         | left-to-right |
-    +---------------+-----------------------------------------+---------------+
+    +--------------+-----------------------------------------+---------------+
+    |     symbol   |               description               |  eval-order   |
+    +--------------+-----------------------------------------+---------------+
+    | ``.`` (dot)  | same as dot(``.``) mathematical symbol  | right-to-left |
+    +--------------+-----------------------------------------+---------------+
+    | ``|`` (pipe) | in Unix pipeline (``|``) manner         | left-to-right |
+    +--------------+-----------------------------------------+---------------+
     > If you don't like function composition using symbols, use ``cf_``.
     > It's the most reliable and safe way to use it for all functions.
 
-    >>> ((_ * 6) ^ (_ + 4))(3)
-    42
-    >>> 3 | (_ + 4) | (_ * 6)
-    42
-    >>> cf_(_ * 6, _ + 4)(3)
-    42
-
-    >>> (length ^ range)(10)
+    >>> (length . range)(10)
     10
     >>> range(10) | length
     10
     >>> cf_(length, range)(10)
     10
 
-    >>> (collect ^ filter(even) ^ range)(10)
+    >>> ((_ * 6) . fx(_ + 4))(3)
+    42
+    >>> 3 | (_ + 4) | (_ * 6)
+    42
+    >>> cf_(_ * 6, _ + 4)(3)
+    42
+
+    >>> (collect . filter(even) . range)(10)
     [0, 2, 4, 6, 8]
     >>> range(10) | filter(even) | collect
     [0, 2, 4, 6, 8]
     >>> cf_(collect, filter(even), range)(10)
     [0, 2, 4, 6, 8]
 
-    >>> (collect ^ map(pred ^ succ) ^ range)(5)
+    >>> (collect . map(pred . succ) . range)(5)
     [0, 1, 2, 3, 4]
-    >>> (sum ^ map(_ + 5) ^ range)(10)
+    >>> (sum . map(_ + 5) . range)(10)
     95
     >>> range(10) | map(_ + 5) | sum
     95
 
-    >>> ((_ * 5) ^ nth(3) ^ range)(5)
+    >>> ((_ * 5) . nth(3) . range)(5)
     10
     >>> 5 | fx(range) | nth(3) | (_ * 5)
     10
 
-    >>> (unchars ^ map(chr))(range(73, 82))
+    >>> (unchars . map(chr))(range(73, 82))
     'IJKLMNOPQ'
     >>> range(73, 82) | map(chr) | unchars
     'IJKLMNOPQ'
@@ -204,14 +203,23 @@ class fx:
     def __new__(cls, f):
         if type(f) is fx:  # join :: m (m a) -> m a
             return f
+        if not callable(f):
+            raise AttributeError(f"error, no such callable: {f}")
         obj = super().__new__(cls)
-        obj.f = f
-        wraps(f)(obj)
+        update_wrapper(obj, f)
         return obj
 
-    def __xor__(self, o):
-        """dot composition operator (``^``)"""
-        return cf_(self, o)
+    @property
+    def __signature__(self):
+        return __sig__(self.__wrapped__)
+
+    @property
+    def arity(self):
+        return farity(self.__wrapped__)
+
+    @property
+    def sig(self):
+        return sig(self.__wrapped__)
 
     def __or__(self, o):
         """pipe composition operator (``|``)"""
@@ -219,28 +227,51 @@ class fx:
 
     def __ror__(self, o):
         """pipe composition operator (``|``)"""
-        return self.f(o)
+        return self.__wrapped__(o)
+
+    def __getattr__(self, o):
+        """dot composition operator (``.``)"""
+        g = globals().get(o, getattr(builtins, o, None))
+        if not callable(g):
+            raise AttributeError(f"error, no such callable: {o}")
+        if o in self.__exempt__:
+            return fx(lambda *args: cf_(self, g(*args)))
+        else:
+            return cf_(self, g)
 
     def __call__(self, *args, **kwargs):
-        arity = farity(self.f)
+        arity = self.arity
         if args and len(args) >= arity or (not args and arity < 1):
-            return self.f(*args, **kwargs)
+            return self.__wrapped__(*args, **kwargs)
         else:
-            return f_(self.f, *args, **kwargs)
+            return f_(self.__wrapped__, *args, **kwargs)
+
+    def fx(self, o):
+        return cf_(self, o)
 
     def __repr__(self):
         return show(self)
 
 
-@lru_cache
 def unfx(f):
-    """Unlift a given ``fx``-lifted function."""
-    return f.f if type(f) is fx else f
+    """Unlift a given ``fx``-lifted function.
+
+    >>> unfx(op.mul) == op.mul
+    True
+    >>> f = fx(op.mul)
+    >>> f(3)(4)
+    12
+    >>> unfx(f)(3)(4)
+    Traceback (most recent call last):
+    ...
+    TypeError: mul expected 2 arguments, got 1
+    """
+    return f.__wrapped__ if type(f) is fx else f
 
 
 @fx
 def id(x):
-    """Identity function
+    """Identity function.
 
     >>> id("francis")
     'francis'
@@ -305,14 +336,17 @@ def nth(n, x):
     >>> ["sofia", "maria", "claire"] | nth(3)
     'claire'
     """
-    return x[n - 1] if hasattr(x, "__getitem__") else next(islice(x, n - 1, None))
+    if hasattr(x, "__getitem__"):
+        return x[n - 1]
+    else:
+        return next(islice(x, n - 1, None))
 
 
 @fx
 def take(n, x):
     """Take ``n`` items from a given iterable ``x``.
 
-    >>> (collect ^ take(3))(range(5, 10))
+    >>> (collect . take(3))(range(5, 10))
     [5, 6, 7]
     >>> range(5, 10) | take(3) | collect
     [5, 6, 7]
@@ -322,7 +356,13 @@ def take(n, x):
 
 @fx
 def takel(n, x):
-    """The same as ``take``, but returns in ``list``."""
+    """The same as ``take``, but returns in ``list``.
+
+    >>> takel(3)(range(5, 10))
+    [5, 6, 7]
+    >>> range(5, 10) | takel(3)
+    [5, 6, 7]
+    """
     return islice(x, n) | collect
 
 
@@ -420,15 +460,15 @@ def ilen(x):
 
 
 @fx
-def pair(a, b):
-    """Make the given two arguments a tuple pair.
+def pack(*args):
+    """Convert the given arguments into a tuple.
 
-    >>> pair("sofia", "maria")
+    >>> pack("sofia", "maria")
     ('sofia', 'maria')
-    >>> "maria" | pair("sofia")
-    ('sofia', 'maria')
+    >>> mapl(pack, [1, 2, 3]) == zipl([1, 2, 3])
+    True
     """
-    return (a, b)
+    return tuple(args)
 
 
 @fx
@@ -541,7 +581,7 @@ def unwords(x):
 
 @fx
 def lines(x):
-    """Splits a string into a list of lines using the delimeter ``\`n`.
+    """Splits a string into a list of lines using the delimeter ``\n``.
 
     >>> lines("fun\\non\\nfunctions")
     ['fun', 'on', 'functions']
@@ -605,7 +645,7 @@ def repeat(x):
 
     >>> take(3, repeat(5)) | collect
     [5, 5, 5]
-    >>> (collect ^ take(3) ^ repeat)(5)
+    >>> (collect . take(3) . repeat)(5)
     [5, 5, 5]
     """
     return (x for _ in count())
@@ -619,7 +659,7 @@ def replicate(n, x):
     [5, 5, 5]
     >>> 5 | replicate(3) | collect
     [5, 5, 5]
-    >>> (collect ^ replicate(3))(5)
+    >>> (collect . replicate(3))(5)
     [5, 5, 5]
     """
     return take(n, repeat(x))
@@ -649,6 +689,20 @@ def product(x):
     return foldl1(op.mul, x)
 
 
+@fx
+def on(b, u, x, y):
+    """Apply a binary function to the results of a unary function on two inputs.
+
+    >>> on(op.eq, len, "sofia", "maria")
+    True
+    >>> on(op.add, _[4], "sofia", "maria")
+    'aa'
+    >>> on(op.gt, ilen, seq(1, 2.9, 20), seq(-11, -8.8, 20))
+    False
+    """
+    return b(u(x), u(y))
+
+
 def flip(f):
     """Reverses the order of arguments of a given function ``f``.
 
@@ -657,12 +711,20 @@ def flip(f):
     >>> (7, 3) | u_(flip((op.sub)))
     -4
     """
+    f = unfx(f)
+
+    def __flip_sig__(f):
+        s = __sig__(f)
+        if s:
+            args = list(s.parameters.values())
+            i = farity(f)
+            return Signature(args[:i][::-1] + args[i:])
 
     @wraps(f)
     def go(*args, **kwargs):
         return f(*reversed(args), **kwargs)
 
-    go.__signature__ = sig(f, reverse=True)
+    go.__signature__ = __flip_sig__(f)
     return go
 
 
@@ -741,10 +803,10 @@ def uncurry(f):
     >>> ([1, 3], [2, 4]) | u_(zip) | collect
     [(1, 2), (3, 4)]
     """
-    return fx(lambda x: f(*x))
+    return fx(lambda xs: f(*xs))
 
 
-def cf_(*fs, rep=None):
+def cf_(*fs):
     """Create composite functions using functions provided in arguments.
 
     >>> cf_(_ * 7, _ + 3)(5)
@@ -752,14 +814,23 @@ def cf_(*fs, rep=None):
     >>> cf_(_["sofia"], dict)([("sofia", "piano"), ("maria", "violin")])
     'piano'
     """
+    if not fs:
+        return id
 
-    def g_f(g, f):
-        return lambda *args, **kwargs: g(f(*args, **kwargs))
+    def comp(fs):
+        return (
+            fs[0]
+            if len(fs) == 1
+            else lambda *args, **kwargs: fs[0](comp(fs[1:])(*args, **kwargs))
+        )
 
-    return fx(reduce(g_f, [unfx(f) for f in fs] * (rep or 1)))
+    go = comp(fs)
+    go.__name__ = "#"
+    go.__signature__ = __sig__(fs[-1])
+    return fx(go)
 
 
-def cf__(*fs, rep=None):
+def cf__(*fs):
     """Composes functions in the same way as ``cf_``, but uses arguments in order.
 
     >>> cf__(_ + 3, _ * 7)(5)
@@ -767,33 +838,7 @@ def cf__(*fs, rep=None):
     >>> cf__(dict, _["sofia"])([("sofia", "piano"), ("maria", "violin")])
     'piano'
     """
-    return cf_(*reversed(fs), rep=rep)
-
-
-def cfd_(*fs, rep=None):
-    """Decorate functions using function composition of given arguments.
-
-    >>> cfd_(set, list, tuple)(range)(5)
-    {0, 1, 2, 3, 4}
-    >>> cfd_(chars, _["maria"])(dict)([("sofia", "piano"), ("maria", "violin")])
-    ['v', 'i', 'o', 'l', 'i', 'n']
-    """
-
-    def go(f):
-        return fx(lambda *args, **kwargs: cf_(*fs, rep=rep)(f(*args, *kwargs)))
-
-    return go
-
-
-def cfd__(*fs, rep=None):
-    """Decorate functions in the same way as ``cfd_``, but uses arguments in order.
-
-    >>> cfd__(set, list, tuple)(range)(5)
-    (0, 1, 2, 3, 4)
-    >>> cfd__(_["maria"], chars)(dict)([("sofia", "piano"), ("maria", "violin")])
-    ['v', 'i', 'o', 'l', 'i', 'n']
-    """
-    return cfd_(*reversed(fs), rep=rep)
+    return cf_(*reversed(fs))
 
 
 def g_(f):
@@ -803,9 +848,10 @@ def g_(f):
 
     >>> g_(_.join)(["sofia", "maria"])(", ")
     'sofia, maria'
+    >>>
     """
     guard(
-        type(f) is fx and isinstance(f.f, op.attrgetter),
+        type(f) is fx and isinstance(f.__wrapped__, op.attrgetter),
         msg=f"error, no attribute getter found: {show(f)}",
     )
 
@@ -818,17 +864,17 @@ def g_(f):
 def map(f, *xs):
     """fx-lifted ``map``, which seamlessly extends ``builtins.map``.
 
-    >>> (collect ^ map(abs))(range(-2, 3)) | collect
+    >>> (collect . map(abs))(range(-2, 3))
     [2, 1, 0, 1, 2]
     >>> map(abs)(range(-2, 3)) | collect
     [2, 1, 0, 1, 2]
 
-    >>> (collect ^ map(_*8))(range(1, 6))
+    >>> (collect . map(_*8))(range(1, 6))
     [8, 16, 24, 32, 40]
     >>> range(1, 6) | map(_*8) | collect
     [8, 16, 24, 32, 40]
 
-    >>> (collect ^ map(op.mul, [1, 2, 3]))([4, 5, 6])
+    >>> (collect . map(op.mul, [1, 2, 3]))([4, 5, 6])
     [4, 10, 18]
     >>> [4, 5, 6] | map(op.mul, [1, 2, 3]) | collect
     [4, 10, 18]
@@ -836,7 +882,9 @@ def map(f, *xs):
     if xs and len(xs) >= farity(f):  # when populated args
         return builtins.map(f, *xs)
     else:
-        return f_(builtins.map, f, *xs)
+        go = lambda *args: builtins.map(f, *args)  # noqa
+        go.__signature__ = __sig__(f)
+        return fx(go)(*xs)
 
 
 def mapl(f, *xs):
@@ -858,17 +906,17 @@ def mapl(f, *xs):
 def filter(p, xs):
     """The same as ``builtins.filter``, but lifted by ``fx``.
 
-    >>> (collect ^ filter(_ == "f"))("fun-on-functions")
+    >>> (collect . filter(_ == "f"))("fun-on-functions")
     ['f', 'f']
     >>> "fun-on-functions" | filter(_ == "f") | collect
     ['f', 'f']
 
     >>> primes = [2, 3, 5, 7, 11, 13, 17, 19]
-    >>> (collect ^ filter((_ == 2) ^ (_ % 3)))(primes)
+    >>> (collect . filter((_ == 2) . fx(_ % 3)))(primes)
     [2, 5, 11, 17]
-    >>> (filter((_ == 2) ^ (_ % 3)) | collect)(primes)
+    >>> (filter((_ == 2) . fx(_ % 3)) | collect)(primes)
     [2, 5, 11, 17]
-    >>> primes | filter((_ == 2) ^ (_ % 3)) | collect
+    >>> primes | filter((_ == 2) . fx(_ % 3)) | collect
     [2, 5, 11, 17]
     >>> primes | filter((_ % 3) | (_ == 2)) | collect
     [2, 5, 11, 17]
@@ -880,17 +928,17 @@ def filter(p, xs):
 def filterl(p, xs):
     """The same as ``filter``, but returns in ``list``.
 
-    >>> (collect ^ filter(_ == "f"))("fun-on-functions")
+    >>> (collect . filter(_ == "f"))("fun-on-functions")
     ['f', 'f']
     >>> "fun-on-functions" | filter(_ == "f") | collect
     ['f', 'f']
 
     >>> primes = [2, 3, 5, 7, 11, 13, 17, 19]
-    >>> filterl((_ == 2) ^ (_ % 3))(primes)
+    >>> filterl((_ == 2) . fx(_ % 3))(primes)
     [2, 5, 11, 17]
     >>> filterl((_ % 3) | (_ == 2))(primes)
     [2, 5, 11, 17]
-    >>> primes | filterl((_ == 2) ^ (_ % 3))
+    >>> primes | filterl((_ == 2) . fx(_ % 3))
     [2, 5, 11, 17]
     >>> primes | filterl((_ % 3) | (_ == 2))
     [2, 5, 11, 17]
@@ -899,31 +947,34 @@ def filterl(p, xs):
 
 
 @fx
-def zip(*xs, strict=False):
+def zip(*xs, strict=False, lo=False, fill=None):
     """The same as ``builtins.zip``, but lifted by ``fx``.
 
     >>> zip("LOVE", range(3)) | collect
     [('L', 0), ('O', 1), ('V', 2)]
-    >>> (f_(zip, "LOVE") ^ range)(3) | collect
+    >>> (f_(zip, "LOVE") . range)(3) | collect
     [('L', 0), ('O', 1), ('V', 2)]
 
     Note that ``u_(zip)(x) equals zip(*x)`` for an iterable ``x``.
 
-    >>> (collect ^ u_(zip))(["LOVE", range(3)])
+    >>> (collect . u_(zip))(["LOVE", range(3)])
     [('L', 0), ('O', 1), ('V', 2)]
     >>> ["LOVE", range(3)] | u_(zip) | collect
     [('L', 0), ('O', 1), ('V', 2)]
     """
-    return builtins.zip(*xs, strict=strict)
+    if lo:
+        return zip_longest(*xs, fillvalue=fill)
+    else:
+        return builtins.zip(*xs, strict=strict)
 
 
 @fx
-def zipl(*xs, strict=False):
+def zipl(*xs, strict=False, lo=False, fill=None):
     """The same as ``zip``, but returns in ``list``.
 
     >>> zipl("LOVE", range(3))
     [('L', 0), ('O', 1), ('V', 2)]
-    >>> (f_(zipl, "LOVE") ^ range)(3)
+    >>> (f_(zipl, "LOVE") . range)(3)
     [('L', 0), ('O', 1), ('V', 2)]
 
     Note that ``u_(zipl)(x) equals zipl(*x)`` for an iterable ``x``.
@@ -933,7 +984,10 @@ def zipl(*xs, strict=False):
     >>> ["LOVE", range(3)] | u_(zipl)
     [('L', 0), ('O', 1), ('V', 2)]
     """
-    return zip(*xs, strict=strict) | collect
+    if lo:
+        return zip_longest(*xs, fillvalue=fill) | collect
+    else:
+        return builtins.zip(*xs, strict=strict) | collect
 
 
 def rangel(*args, **kwargs):
@@ -1418,13 +1472,12 @@ def seq(i, j=None, k=None, /):
             return takewhile(lambda x: x <= k, count(i, j - i))
 
 
-@fx
 def force(expr):
-    """Forces the delayed-expression to be fully evaluated."""
+    """Forces the delayed-expression to be evaluated."""
     return expr() if callable(expr) else expr
 
 
-def error(msg="error", e=SystemExit):
+def error(msg=0, e=SystemExit):
     """``raise`` an exception with a function or expression.
 
     >>> error("an error occured.")
@@ -1488,7 +1541,7 @@ def tap(f, void=False):
     return go
 
 
-def guard(p, msg="guard", e=SystemExit):
+def guard(p, msg=0, e=SystemExit):
     """``assert`` as a function or expression.
 
     >>> guard(7 > 5, "error, must be greater than 5.")
@@ -1502,7 +1555,7 @@ def guard(p, msg="guard", e=SystemExit):
         error(msg=msg, e=e)
 
 
-def guard_(f, msg="guard", e=SystemExit):
+def guard_(f, msg=0, e=SystemExit):
     """Partial application builder for ``guard``:
     the same as ``guard``, but the positional predicate is given
     as a function rather than a boolean expression.
@@ -1528,50 +1581,59 @@ def farity(f):
     >>> farity(print)
     -1
     """
-    try:
+    if type(f) is fx:
+        return f.arity
+    s = __sig__(f)
+    if s:
         return builtins.sum(
             1
-            for p in signature(f).parameters.values()
+            for p in s.parameters.values()
             if (
                 p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
                 and p.default is p.empty
             )
         )
-    except:
+    else:
         return -1  # uninspectable functions
 
 
+def sig(f):
+    """Get the stringified arguments of a given function ``f``."""
+    if type(f) is fx:
+        return f.sig
+    s = __sig__(f)
+    if s:
+        return tuple(str(x) for x in s.parameters.values())
+    else:
+        return None
+
+
 @lru_cache
-def sig(f, reverse=False):
-    """Inspect the signature of a given function ``f`` using ``inspect``"""
+def __sig__(f):
+    if type(f) is fx:
+        return f.__signature__
     try:
-        return (
-            Signature(list(signature(f).parameters.values())[::-1])
-            if reverse
-            else signature(f)
-        )
         return signature(f)
     except:
         return None
 
 
 def catalog():
-    """Display/get the list of functions available."""
+    """Get the full list of functions along with their arguments."""
     d = {}
-    for fn in sort(__all__):
-        f = eval(fn)
+    for fname in sort(__all__):
+        f = eval(fname)
         if not callable(f) or type(f) is xlambda:
             continue
-        s = sig(eval(fn))
-        d[fn] = s if s else "inspection not available"
+        s = __sig__(eval(fname))
+        d[fname] = s if s else "inspection not available"
     return d
 
 
-@lru_cache
 def show(f):
     """Stringify functions into human-readable form."""
     if type(f) is fx:
-        return f"fx({show(f.f)})"
+        return f"fx({show(f.__wrapped__)})"
     elif isinstance(f, partial):
         args = f", {', '.join(f'{x}' for x in f.args)}" if f.args else ""
         kwargs = (
@@ -1581,7 +1643,8 @@ def show(f):
         )
         return f"f_({show(f.func)}{args}{kwargs})"
     elif sig(f) and hasattr(f, "__name__"):
-        return f"{f.__name__}{sig(f)}"
+        x = f.__name__
+        return f"{'_' if x=='<lambda>' else x}{sig(f)}"
     elif hasattr(f, "__name__"):
         return f.__name__
     else:
@@ -1960,5 +2023,22 @@ lazy = f_
 c_ = curry
 u_ = uncurry
 _ = xlambda()
+
+fx.__exempt__ = {
+    "f_",
+    "f__",
+    "map",
+    "mapl",
+    "filter",
+    "filterl",
+    "zip",
+    "zipl",
+    "curry",
+    "c_",
+    "c__",
+    "uncurry",
+    "u_",
+    "g_",
+}
 
 sys.setrecursionlimit(5000)
