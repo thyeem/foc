@@ -44,7 +44,7 @@ _Func-Oriented Code_ or _Francis' Odd Collection_.
 42
 ```
 
-Remember that it is only necessary to use `fx` _when using lambda expressions and `.`.    
+Remember that it is only necessary to use `fx` _when using lambda expressions and `.`_.    
 That's all.   
 
 For more examples, see the [documentation](https://github.com/thyeem/foc/blob/main/foc/__init__.py#L150) provided with each function.
@@ -67,41 +67,10 @@ For more examples, see the [documentation](https://github.com/thyeem/foc/blob/ma
 'IJKLMNOPQ'
 ```
 
-## _Ouch_
-[`ouch`](https://github.com/thyeem/ouch) is a collection of utilities that are based on and aligned with `foc`.
-
-```python
-from ouch import *
-
-# soft/hard flatten
->>> [1, [(2,), [[{3}, (x for x in range(3))]]]] | flat | collect
-[1, 2, 3, 0, 1, 2]
-
-# 'shell' command
->>> shell(f"du -hs foc/__init__.py 2>/dev/null") | fst | g_(_.split)()
-['44K', 'foc/__init__.py']
-
-# 'ls' command
->>> ls(".", r=True, grep="^(foc).*py$")
-['foc/__init__.py']
-
-# dot-accessible dict
->>> d = dmap(name="yunchan lim", age=19)
->>> d.cliburn.semifinal.concerto = "Mozart Piano Concerto No.22, K.482"
->>> d.cliburn.semifinal.recital = "Liszt 12 Transcendental Etudes"
->>> d.cliburn.final = "Rachmaninov Piano Concerto No.3, Op.30"
->>> d | nprint
- cliburn  |      final  |  Rachmaninov Piano Concerto No.3, Op.30
-          :  semifinal  |  concerto  |  Mozart Piano Concerto No.22, K.482
-          :             :   recital  |  Liszt 12 Transcendental Etudes
-    name  |  yunchan lim
-    
-# and more ...
-```
-
 > To see all the functions provided by `foc`, 
 ```python
->>> catalog() | nprint
+>>> from ouch import pp
+>>> catalog() | pp
 ```
 
 ## Install
@@ -229,7 +198,7 @@ True
 [Everything in one place](https://github.com/thyeem/foc/blob/main/foc/__init__.py).
 
 - `fx` _pure basic functions_ `id`, `const`, `take`, `drop`, `repeat`, `replicate`..
-- _higher-order_ functions like `cf_`, `f_`, `g_`, `curry`, `uncurry`, `map`, `filter`, `zip`,.. 
+- _higher-order_ functions like `cf_`, `f_`, `ob`, `curry`, `uncurry`, `map`, `filter`, `zip`,.. 
 -  useful yet very fundamental like `seq`, `force`, `trap`, `error`, `guard`,..
 
 ## Real-World Example
@@ -256,13 +225,13 @@ _Some_ claim that this helps follow the workflow of tensor operation without dis
         return cf_(
             self.dropout,  # dropout of layer's output
             self.c_proj,  # linear projection
-            g_(_.view)(B, S, E),  # (B, S, N, H) -> (B, S, E)
+            ob(_.view)(B, S, E),  # (B, S, N, H) -> (B, S, E)
             torch.Tensor.contiguous,  # contiguos in-memory tensor
-            g_(_.transpose)(1, 2),  # (B, S, N, H)
+            ob(_.transpose)(1, 2),  # (B, S, N, H)
             _ @ v,  # (B, N, S, S) x (B, N, S, H) -> (B, N, S, H)
             self.dropout_attn,  # attention dropout
             f_(F.softmax, dim=-1),  # softmax
-            g_(_.masked_fill)(mask == 0, float("-inf")),  # no-look-ahead
+            ob(_.masked_fill)(mask == 0, float("-inf")),  # no-look-ahead
             _ / math.sqrt(k.size(-1)),  # / sqrt(d_k)
             _ @ k.transpose(-2, -1),  # Q @ K^T -> (B, N, S, S)
         )(q)

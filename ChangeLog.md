@@ -176,3 +176,6 @@
 - Remove redundant `cfd_`, `cfd__` and `pair`.
 - Add `on` and `pack`.
 - Add `__signature__` to make the function easier to trace.
+
+# 0.6.1
+- Rename `g_` to `ob` for ease of use.
