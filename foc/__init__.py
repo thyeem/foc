@@ -10,7 +10,7 @@ from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile, zip_longest
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 __all__ = [
     "_",
@@ -62,7 +62,6 @@ __all__ = [
     "force",
     "fst",
     "fx",
-    "g_",
     "guard",
     "guard_",
     "head",
@@ -89,6 +88,7 @@ __all__ = [
     "nth",
     "nub",
     "null",
+    "ob",
     "odd",
     "on",
     "op",
@@ -841,14 +841,20 @@ def cf__(*fs):
     return cf_(*reversed(fs))
 
 
-def g_(f):
-    """Build partially-applied methods using attribute getter ``f``.
-    This is useful for expressing method chaining (fluent pattern)
-    as function composition.
+def ob(f):
+    """object-bypass: partially-applied methods using attribute getter ``f``.
+    It initially bypasses objects, allowing other arguments to be supplied
+    first in curried form.
 
-    >>> g_(_.join)(["sofia", "maria"])(", ")
+    ``obj.method(*args, **kwargs) == ob(_.method)(*args, **kwargs)(obj)``
+
+    This is useful for composing method chaining or fluent pattern
+    as a function composition.
+
+    >>> ob(_.join)(["sofia", "maria"])(", ")
     'sofia, maria'
-    >>>
+    >>> x = torch.randn(3, 4, 5)  # doctest: +SKIP
+    >>> ob(_.transpose)(2, 0)(x)  # doctest: +SKIP
     """
     guard(
         type(f) is fx and isinstance(f.__wrapped__, op.attrgetter),
@@ -2038,7 +2044,7 @@ fx.__exempt__ = {
     "c__",
     "uncurry",
     "u_",
-    "g_",
+    "ob",
 }
 
 sys.setrecursionlimit(5000)
