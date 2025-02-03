@@ -3,14 +3,14 @@ import itertools as it
 import operator as op
 import sys
 from collections import deque
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Sequence
 from functools import lru_cache, partial, reduce, update_wrapper, wraps
 from inspect import Signature, signature
 from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile, zip_longest
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 
 __all__ = [
     "_",
@@ -35,6 +35,7 @@ __all__ = [
     "concatl",
     "concatmap",
     "concatmapl",
+    "cons",
     "const",
     "count",
     "curry",
@@ -111,6 +112,7 @@ __all__ = [
     "second",
     "seq",
     "snd",
+    "snoc",
     "sort",
     "succ",
     "sum",
@@ -1397,7 +1399,7 @@ def intercalate(sep, x):
 
 @fx
 def collect(x):
-    """Unpack lazy-iterables in lists and leave other iterables unchanged
+    """Unpack lazy-iterables in lists and leave other iterables unchanged.
 
     >>> collect((1,2,3,4,5))
     (1, 2, 3, 4, 5)
@@ -1417,7 +1419,28 @@ def collect(x):
             else x
         )
     else:
-        error(f"collect, no iterables given, got {type(x)}")
+        error(f"collect, expected an iterable, but got {type(x).__name__}")
+
+
+@fx
+def cons(a, b):
+    """Prepend ``a`` to the iterable ``b``.
+
+    >>> cons(1, [2])
+    [1, 2]
+    >>> cf_(cons(1), cons(2), cons(3))(())
+    (1, 2, 3)
+    >>> cons("❤", "sofimaria❤")
+    "['❤', 's', 'o', 'f', 'i', 'm', 'a', 'r', 'i', 'a', '❤']"
+    """
+    if not isinstance(b, Iterable):
+        error(f"cons, expected an iterable, but got: {type(b).__name__}")
+    if isinstance(b, Sequence):
+        try:
+            return type(b)([a, *b])
+        except TypeError:
+            pass
+    return [a, *b]
 
 
 @fx
@@ -1972,10 +1995,15 @@ class xlambda:
         True
         >>> (_[3])(r) == (lambda x: x[3])(r)
         True
+        >>> (_[2, 3, -1])(r) == (2, 3, 4)
+        True
         """
         if type(o) is xlambda:
             return f_(op.getitem)
-        return f__(op.getitem, o)
+        elif isinstance(o, tuple):
+            return op.itemgetter(*o)
+        else:
+            return f__(op.getitem, o)
 
     def __getattr__(self, o):
         """
@@ -2012,6 +2040,7 @@ class xlambda:
 # -------------------------------
 uniq = nub
 zipwith = mapl
+snoc = fx(flip(cons))
 sort = fx(sorted)
 length = fx(len)
 abs = fx(abs)

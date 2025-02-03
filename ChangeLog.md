@@ -179,3 +179,7 @@
 
 # 0.6.1
 - Rename `g_` to `ob` for ease of use.
+
+# 0.6.2
+- Add `cons` and `snoc`
+- Fix `xlambda.__getitem__`: getting multiple items instead of giving up tuple key.
