@@ -183,3 +183,6 @@
 # 0.6.2
 - Add `cons` and `snoc`
 - Fix `xlambda.__getitem__`: getting multiple items instead of giving up tuple key.
+
+# 0.6.3
+- Bug fixes: `seq` when steps go to negative, cannot meet termination cond.

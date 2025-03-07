@@ -10,7 +10,7 @@ from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile, zip_longest
 
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 
 __all__ = [
     "_",
@@ -1481,8 +1481,16 @@ def seq(i, j=None, k=None, /):
     [3, 4, 5]
     >>> seq(3,7,...) | takel(5)
     [3, 7, 11, 15, 19]
-    >>> seq(3,7,17) | takel(5)
+    >>> seq(3,7,17) | collect
     [3, 7, 11, 15]
+    >>> seq(7,3,17) | collect
+    []
+    >>> seq(-7,3,-17) | collect
+    []
+    >>> seq(-3,7,17) | collect
+    [-3, 7, 17]
+    >>> seq(7,3,-17) | collect
+    [7, 3, -1, -5, -9, -13, -17]
     >>> zipwith(op.add, seq(1, 5), seq(6,...))
     [7, 9, 11, 13, 15]
     """
@@ -1498,7 +1506,15 @@ def seq(i, j=None, k=None, /):
         if k == ...:  # seq(a,b,...) == [a,b..]
             return count(i, j - i)
         else:  # seq(a,b,c) == [a,b..c]
-            return takewhile(lambda x: x <= k, count(i, j - i))
+            step = j - i
+            if step == 0:
+                return iter([])
+            if (step > 0 and i > k) or (step < 0 and i < k):
+                return iter([])
+            return takewhile(
+                (lambda x: x <= k) if step > 0 else lambda x: x >= k,
+                count(i, step),
+            )
 
 
 def force(expr):
