@@ -186,3 +186,7 @@
 
 # 0.6.3
 - Bug fixes: `seq` when steps go to negative, cannot meet termination cond.
+
+# 0.6.4
+- Fix: `error` raises an `Exception` by default.
+- Add: `die` terminates programs with given messages.

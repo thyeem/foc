@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "foc"
+dynamic = ["version"]
+description ="A collection of python functions for somebody's sanity"
+readme = "README.md"
+authors = [
+    {name = "Taeho Francis Lim", email = "thyeem@gmail.com"}
+]
+keywords = ["functools", "function-composition", "functional-python", "function-collection"]
+classifiers = [
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+requires-python = ">=3.6"
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/thyeem/foc"
+
+[tool.setuptools]
+packages = ["foc"]
+include-package-data = false
+license-files = []
+
+[tool.setuptools.dynamic]
+version = {attr = "foc.__version__"}
+
+[tool.setuptools.package-data]
+"*" = []

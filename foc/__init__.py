@@ -10,7 +10,7 @@ from itertools import accumulate, count, cycle, dropwhile, islice
 from itertools import product as cprod
 from itertools import takewhile, zip_longest
 
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 
 __all__ = [
     "_",
@@ -49,6 +49,7 @@ __all__ = [
     "elem",
     "enumeratel",
     "error",
+    "die",
     "even",
     "f_",
     "f__",
@@ -1419,7 +1420,7 @@ def collect(x):
             else x
         )
     else:
-        error(f"collect, expected an iterable, but got {type(x).__name__}")
+        die(f"collect, expected an iterable, but got {type(x).__name__}")
 
 
 @fx
@@ -1434,7 +1435,7 @@ def cons(a, b):
     "['❤', 's', 'o', 'f', 'i', 'm', 'a', 'r', 'i', 'a', '❤']"
     """
     if not isinstance(b, Iterable):
-        error(f"cons, expected an iterable, but got: {type(b).__name__}")
+        die(f"cons, expected an iterable, but got: {type(b).__name__}")
     if isinstance(b, Sequence):
         try:
             return type(b)([a, *b])
@@ -1522,27 +1523,44 @@ def force(expr):
     return expr() if callable(expr) else expr
 
 
-def error(msg=0, e=SystemExit):
+def error(msg="", e=Exception, traceback=True):
     """``raise`` an exception with a function or expression.
 
     >>> error("an error occured.")
     Traceback (most recent call last):
     ...
-    SystemExit: an error occured.
+    Exception: an error occured.
 
     >>> error("something wrong.", e=TypeError)
     Traceback (most recent call last):
     ...
     TypeError: something wrong.
     """
+    if traceback:
+        raise e(msg) if msg else e
+    else:
+        if msg:
+            raise e(msg) from None
+        else:
+            raise e from None
 
-    raise e(msg) from None
+
+def die(msg="", traceback=False):
+    """Terminate the program with an error message.
+
+    >>> die("Exiting due to an error.")
+    Traceback (most recent call last):
+    ...
+    SystemExit: Exiting due to an error.
+    """
+
+    error(msg=msg, e=SystemExit, traceback=traceback)
 
 
 def safe(f):
     """Make a given function return ``None`` instead of raising an exception.
 
-    >>> safe(error)("never-throw-errors")
+    >>> safe(die)("never-throw-errors")
     """
     return trap(callback=void, e=None)(f)
 
@@ -1586,7 +1604,7 @@ def tap(f, void=False):
     return go
 
 
-def guard(p, msg=0, e=SystemExit):
+def guard(p, msg="", e=Exception, traceback=True):
     """``assert`` as a function or expression.
 
     >>> guard(7 > 5, "error, must be greater than 5.")
@@ -1597,10 +1615,10 @@ def guard(p, msg=0, e=SystemExit):
     ValueError: error, must be greater than 5.
     """
     if not p:
-        error(msg=msg, e=e)
+        error(msg=msg, e=e, traceback=traceback)
 
 
-def guard_(f, msg=0, e=SystemExit):
+def guard_(f, msg="", e=Exception, traceback=True):
     """Partial application builder for ``guard``:
     the same as ``guard``, but the positional predicate is given
     as a function rather than a boolean expression.
@@ -1612,7 +1630,7 @@ def guard_(f, msg=0, e=SystemExit):
     ...
     ValueError: error, must be greater than 5.
     """
-    return tap(lambda x: guard(f(x), msg=msg, e=e))
+    return tap(lambda x: guard(f(x), msg=msg, e=e, traceback=traceback))
 
 
 @lru_cache
